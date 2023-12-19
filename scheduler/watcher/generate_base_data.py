@@ -1,6 +1,6 @@
 import asyncio
 
-from . import BaseWatcher, WatchResult
+from . import BaseWatcher, WatchResult, RestAPIWatcher
 
 class GenerateBaseDataWatcher(BaseWatcher):
     def __init__(self, ) -> None:

@@ -1,1 +1,1 @@
-from .base_watcher import BaseWatcher, WatchResult
+from .base_watcher import BaseWatcher, WatchResult, RestAPIWatcher
