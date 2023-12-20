@@ -1,0 +1,6 @@
+aiohttp
+aiofiles
+pytest
+pytest-aiohttp
+pytest-asyncio
+pytest-aiofiles
