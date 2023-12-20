@@ -207,6 +207,7 @@ class RestAPIWatcher(BaseWatcher):
             list of upstream ready conf
         """
         ready_scenes = []
-        status = defaultdict(list)
-        
-
+        status_df = self.get_all_upstream_status()
+        for skeys, subdf in status_df.groupby(self.scene_id_keys):
+            deps = []
+            for dep in self.upstream:
