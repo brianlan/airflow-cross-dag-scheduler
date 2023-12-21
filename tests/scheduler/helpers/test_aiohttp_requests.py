@@ -1,6 +1,8 @@
 import pytest
+import aiohttp
 
 from scheduler.helpers import aiohttp_requests as ar
+from scheduler.helpers.aiohttp_requests import async_retry
 from scheduler.helpers.base import async_read_cookie_session
 
 
@@ -37,3 +39,32 @@ async def test_get_dag_id():
         "tags": [],
         "timetable_description": "Never, external triggers only",
     }
+
+
+# Mock function for testing
+async def mock_function(should_fail_times):
+    if mock_function.counter < should_fail_times:
+        mock_function.counter += 1
+        raise aiohttp.ClientError("Mocked client error")
+    return 200, "Success"
+
+# Apply the decorator (now the new mock_function is the decorated version with retry logic)
+mock_function_with_retry = async_retry(retries=3, delay=0.1)(mock_function)
+
+@pytest.mark.asyncio
+async def test_retry_success():
+    mock_function.counter = 0
+    status, message = await mock_function_with_retry(2)  # should fail 2 times, then succeed
+    assert status == 200 and message == "Success"
+
+@pytest.mark.asyncio
+async def test_retry_failure():
+    mock_function.counter = 0
+    with pytest.raises(aiohttp.ClientError):
+        await mock_function_with_retry(4)  # should fail all 4 times
+
+@pytest.mark.asyncio
+async def test_no_retry_needed():
+    mock_function.counter = 0
+    status, message = await mock_function_with_retry(0)  # should succeed on first attempt
+    assert status == 200 and message == "Success"

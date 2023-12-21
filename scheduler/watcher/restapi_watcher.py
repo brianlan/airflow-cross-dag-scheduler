@@ -141,12 +141,7 @@ class RestAPIWatcher(BaseWatcher):
         payload = {"conf": dag_conf}
         if dag_run_id:
             payload['dag_run_id'] = dag_run_id
-        async with aiohttp.ClientSession() as session:
-            async with session.post(url, json=payload) as response:
-                if response.status != 200:
-                    # Handle error
-                    pass
-
+        status, json_data = await ar.post(url, payload, cookies=self.cookies)
 
     async def get_all_upstream_status(self) -> pd.DataFrame:
         status_df_list = []
