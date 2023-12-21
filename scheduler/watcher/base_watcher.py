@@ -7,7 +7,7 @@ class WatchResult:
         self.context = {}
     
     def __setattr__(self, __name: str, __value: Any) -> None:
-        if __name == "action" and __value not in ["trigger", "unset", "error", "check"]:
+        if __name == "action" and __value not in ["trigger", "unset", "error", "watch"]:
             raise ValueError("Invalid action")
 
 
@@ -16,10 +16,10 @@ class BaseWatcher:
         while True:
             result = await self.watch()
             if result.action == "trigger":
-                await self.trigger()
+                await self.trigger(result.context)
     
     async def watch(self) -> WatchResult:
         raise NotImplementedError
 
-    async def trigger(self) -> None:
+    async def trigger(self, context: dict) -> None:
         raise NotImplementedError
