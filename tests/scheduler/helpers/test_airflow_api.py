@@ -9,14 +9,14 @@ def cookies():
 
 @pytest.mark.asyncio
 async def test_get_dag_runs(cookies):
-    dag_runs = await get_dag_runs("http://127.0.0.1:8080", None, "dag_for_unittest", cookies, scene_id_keys=["scene_id"], to_dataframe=False)
+    dag_runs = await get_dag_runs("http://127.0.0.1:8080", None, "dag_for_unittest", cookies, to_dataframe=False)
     assert len(dag_runs) == 2
     assert {d["dag_run_id"] for d in dag_runs} == {"manual__2023-12-20T03:38:06+00:00", "fixed_a001"}
 
 
 @pytest.mark.asyncio
 async def test_get_dag_runs_with_batch_id(cookies):
-    dag_runs = await get_dag_runs("http://127.0.0.1:8080", "baidu_integration_test", "dag_for_unittest", cookies, scene_id_keys=["scene_id"], to_dataframe=False)
+    dag_runs = await get_dag_runs("http://127.0.0.1:8080", "baidu_integration_test", "dag_for_unittest", cookies, to_dataframe=False)
     assert len(dag_runs) == 2
     assert {d["dag_run_id"] for d in dag_runs} == {"manual__2023-12-21T02:53:04+00:00", "fixed_a002"}
 

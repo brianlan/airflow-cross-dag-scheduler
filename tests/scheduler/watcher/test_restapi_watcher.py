@@ -23,8 +23,8 @@ async def test_get_all_upstream_status_mixed(cookies):
         "downstream",
         {},
         [
-            TaskSensor("http://127.0.0.1:8080", None, "dag_for_unittest", "fisheye.task_inside_2", cookies, ["scene_id"]), 
-            DagSensor("http://127.0.0.1:8080", None, "dag_for_unittest_another", cookies, ["scene_id"])
+            TaskSensor("http://127.0.0.1:8080", None, "dag_for_unittest", "fisheye.task_inside_2", cookies), 
+            DagSensor("http://127.0.0.1:8080", None, "dag_for_unittest_another", cookies)
         ],
         ["scene_id"],
         "conf/cookie_session",
@@ -104,8 +104,8 @@ async def test_get_all_ready_scene(mock_get_all_upstream_status):
         {},
         "downstream",
         [
-            TaskSensor("http://127.0.0.1:8080", None, "dag_for_unittest", "fisheye.task_inside_2", cookies, ["scene_id"]), 
-            DagSensor("http://127.0.0.1:8080", None, "dag_for_unittest_another", cookies, ["scene_id"])
+            TaskSensor("http://127.0.0.1:8080", None, "dag_for_unittest", "fisheye.task_inside_2", cookies), 
+            DagSensor("http://127.0.0.1:8080", None, "dag_for_unittest_another", cookies)
         ],
         ["scene_id"],
         "conf/cookie_session",
@@ -123,15 +123,15 @@ async def test_get_all_ready_scene_multi_scene_id_keys(mock_get_all_upstream_sta
 
 
 @pytest.mark.asyncio
-async def test_get_existing_scenes():
+async def test_get_existing_scenes(cookies):
     watcher = RestAPIWatcher(
         "http://127.0.0.1:8080",
         "baidu_integration_test",
         "downstream",
         {},
         [
-            TaskSensor("http://127.0.0.1:8080", None, "dag_for_unittest", "fisheye.task_inside_2", cookies, ["scene_id"]), 
-            DagSensor("http://127.0.0.1:8080", None, "dag_for_unittest_another", cookies, ["scene_id"])
+            TaskSensor("http://127.0.0.1:8080", None, "dag_for_unittest", "fisheye.task_inside_2", cookies), 
+            DagSensor("http://127.0.0.1:8080", None, "dag_for_unittest_another", cookies)
         ],
         ["scene_id"],
         "conf/cookie_session",

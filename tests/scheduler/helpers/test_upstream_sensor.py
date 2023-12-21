@@ -13,8 +13,9 @@ def cookies():
 
 @pytest.mark.asyncio
 async def test_get_all_upstream_status_only_dag(cookies):
-    sensor = DagSensor("http://127.0.0.1:8080", None, "dag_for_unittest", cookies, ["scene_id"])
+    sensor = DagSensor("http://127.0.0.1:8080", None, "dag_for_unittest", cookies)
     status_df = await sensor.sense()
+    status_df.loc[:, "scene_id"] = status_df.conf.map(lambda x: x.get("scene_id"))
     pd.testing.assert_frame_equal(
         status_df[["dag_id", "dag_run_id", "dag_run_state", "scene_id", "state"]],
         pd.DataFrame(
@@ -31,8 +32,9 @@ async def test_get_all_upstream_status_only_dag(cookies):
 
 @pytest.mark.asyncio
 async def test_get_all_upstream_status_with_task_instances(cookies):
-    sensor = TaskSensor("http://127.0.0.1:8080", None, "dag_for_unittest", "fisheye.task_inside_2", cookies, ["scene_id"])
+    sensor = TaskSensor("http://127.0.0.1:8080", None, "dag_for_unittest", "fisheye.task_inside_2", cookies)
     status_df = await sensor.sense()
+    status_df.loc[:, "scene_id"] = status_df.conf.map(lambda x: x.get("scene_id"))
     pd.testing.assert_frame_equal(
         status_df[["dag_id", "dag_run_id", "dag_run_state", "scene_id", "task_id", "task_instance_state", "state"]],
         pd.DataFrame(

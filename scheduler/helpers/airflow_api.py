@@ -11,7 +11,6 @@ async def get_dag_runs(
     dag_id: str,
     cookies: dict,
     to_dataframe: bool = False,
-    scene_id_keys: Sequence[str] = None,
 ) -> Union[List[dict], pd.DataFrame]:
     """Get all the DagRuns of `dag_id` with the same batch_id as batch_id using Airflow RESTAPI:
     http://{api_url}/api/v1/dags/{dag_id}/dagRuns
@@ -41,9 +40,6 @@ async def get_dag_runs(
     if to_dataframe:
         for dr in dag_runs:
             dr["batch_id"] = dr["conf"].get("batch_id")
-            if scene_id_keys:
-                for key in scene_id_keys:
-                    dr[key] = dr["conf"][key]
         dag_runs = pd.DataFrame.from_records(dag_runs)
         dag_runs.rename(columns={"state": "dag_run_state"}, inplace=True)
     return dag_runs

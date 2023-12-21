@@ -123,6 +123,9 @@ class RestAPIWatcher(BaseWatcher):
 
     async def get_all_upstream_status(self) -> pd.DataFrame:
         status_df_list = [await sensor.sense() for sensor in self.upstream_sensors]
+        for key in self.scene_id_keys:
+            for status_df in status_df_list:
+                status_df.loc[:, key] = status_df.conf.map(lambda x: x.get(key))
         return pd.concat(status_df_list).reset_index(drop=True)
 
     async def get_all_upstream_ready_scenes(self) -> List[dict]:
@@ -166,7 +169,9 @@ class RestAPIWatcher(BaseWatcher):
         List[dict]
             list of existing scenes, each scene is a dict of {scene_id_key[0]: scene_id_value[0], scene_id_key[1]: scene_id_value[1], ...}
         """
-        dag_run_df = await get_dag_runs(self.api_url, self.batch_id, self.dag_id, self.cookies, scene_id_keys=self.scene_id_keys, to_dataframe=True)
+        dag_run_df = await get_dag_runs(self.api_url, self.batch_id, self.dag_id, self.cookies, to_dataframe=True)
+        for key in self.scene_id_keys:
+            dag_run_df.loc[:, key] = dag_run_df.conf.map(lambda x: x.get(key))
         existing_scenes = []
         for i, row in dag_run_df.iterrows():
             scn = {k: v for k, v in zip(self.scene_id_keys, row[self.scene_id_keys].values)}
