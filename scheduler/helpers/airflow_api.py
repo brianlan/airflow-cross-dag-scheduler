@@ -1,4 +1,4 @@
-from typing import Sequence, Union, List
+from typing import Union, List
 
 import pandas as pd
 
@@ -111,3 +111,28 @@ async def get_task_instance(
         ti = pd.DataFrame.from_records(ti)
         ti.rename(columns={"state": "task_instance_state"}, inplace=True)
     return ti
+
+
+async def trigger_dag(api_url: str, dag_id: str, cookies: dict, dag_conf: dict = None, dag_run_id: str = None) -> None:
+    """Trigger a DagRun using Airflow RestAPI:
+    https://{api_url}/api/v1/dags/{dag_id}/dagRuns
+
+    Parameters
+    ----------
+    api_url : str
+        api endpoint url
+    dag_id : str
+        dag id
+    cookies: dict
+        cookies for authentication
+    dag_conf : dict, optional
+        conf dict that passed to DagRun when triggering, by default None
+    dag_run_id : str, optional
+        if specified, will use this as DagRunId, by default None
+    """
+    dag_conf = dag_conf or {}
+    url = f"{api_url}/api/v1/dags/{dag_id}/dagRuns"
+    payload = {"conf": dag_conf}
+    if dag_run_id:
+        payload["dag_run_id"] = dag_run_id
+    return await ar.post(url, payload, cookies=cookies)

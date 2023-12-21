@@ -36,3 +36,7 @@ class TaskSensor(UpstreamSensor):
         # )
 
         return status_df
+
+    @property
+    def query_key_values(self) -> list[str]:
+        return {"batch_id": self.batch_id, "dag_id": self.dag_id, "task_id": self.task_id}

@@ -1,10 +1,3 @@
-scene_list:
-  - scn_001
-  - scn_002
-  - scn_003
-  - scn_004
-  - scn_005
-
 watchers:
   - dag_id: generate_base_data
     class: RestAPIWatcher
@@ -16,7 +9,14 @@ watchers:
     scene_id_keys: ["scene_id"]
     use_scene_id_keys_as_dag_run_id: True
     upstream: 
-      - "sence_list"
+      - class: StaticSceneListSensor
+        args:
+          scene_list:
+            - scene_id: scn_001
+            - scene_id: scn_002
+            - scene_id: scn_003
+            - scene_id: scn_004
+            - scene_id: scn_005
 
   - dag_id: nvidia_segmentation
     class: RestAPIWatcher
@@ -28,7 +28,8 @@ watchers:
     scene_id_keys: ["scene_id"]
     use_scene_id_keys_as_dag_run_id: False
     upstream:
-      - {"dag_id": "generate_base_data", "task_id": "generate_image"} 
+      - class: TaskSensor
+        args: {"dag_id": "generate_base_data", "task_id": "generate_image"} 
 
   - dag_id: generate_ipm
     class: RestAPIWatcher
@@ -39,8 +40,10 @@ watchers:
     scene_id_keys: ["scene_id"]
     use_scene_id_keys_as_dag_run_id: True
     upstream:
-      - {"dag_id": "generate_base_data"} 
-      - {"dag_id": "nvidia_segmentation", "task_id": "fisheye"} 
+      - class: DagSensor
+        args: {"dag_id": "generate_base_data"} 
+      - class: TaskSensor
+        arsg: {"dag_id": "nvidia_segmentation", "task_id": "fisheye"} 
 
   - dag_id: image_undistort
     class: RestAPIWatcher
@@ -51,4 +54,5 @@ watchers:
     scene_id_keys: ["scene_id"]
     use_scene_id_keys_as_dag_run_id: True
     upstream:
-      - {"dag_id": "generate_base_data"}
+      - class: DagSensor
+        args: {"dag_id": "generate_base_data"}

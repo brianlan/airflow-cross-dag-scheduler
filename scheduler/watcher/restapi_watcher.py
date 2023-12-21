@@ -2,10 +2,9 @@ from typing import List
 
 import pandas as pd
 
-from ..helpers.airflow_api import get_dag_runs
-from ..helpers import aiohttp_requests as ar
+from ..helpers.base import is_in_df
+from ..helpers.airflow_api import get_dag_runs, trigger_dag
 from ..upstream_sensor.base import UpstreamSensor
-from ..upstream_sensor.dag_sensor import DagSensor
 from .base_watcher import BaseWatcher, WatchResult
 
 
@@ -99,33 +98,14 @@ class RestAPIWatcher(BaseWatcher):
         dag_run_id = None
         if self.use_scene_id_keys_as_dag_run_id:
             dag_run_id = "_".join([f"{k}:{v}" for k, v in context["scene_id_keys"].items()])
-        status, json_data = await self.trigger_dag(self.dag_id, dag_conf=dag_conf, dag_run_id=dag_run_id)
+        status, json_data = await trigger_dag(self.dag_id, dag_conf=dag_conf, dag_run_id=dag_run_id)
 
-    async def trigger_dag(self, dag_id: str, dag_conf: dict = None, dag_run_id: str = None) -> None:
-        """Trigger a DagRun using Airflow RestAPI:
-        https://{api_url}/api/v1/dags/{dag_id}/dagRuns
-
-        Parameters
-        ----------
-        dag_id : str
-            dag id
-        dag_conf : dict, optional
-            conf dict that passed to DagRun when triggering, by default None
-        dag_run_id : str, optional
-            if specified, will use this as DagRunId, by default None
-        """
-        dag_conf = dag_conf or {}
-        url = f"{self.api_url}/api/v1/dags/{dag_id}/dagRuns"
-        payload = {"conf": dag_conf}
-        if dag_run_id:
-            payload["dag_run_id"] = dag_run_id
-        return await ar.post(url, payload, cookies=self.cookies)
-
-    async def get_all_upstream_status(self) -> pd.DataFrame:
-        status_df_list = [await sensor.sense() for sensor in self.upstream_sensors]
+    async def get_all_success_upstream(self) -> pd.DataFrame:
+        status_df_list = [await sensor.sense(state="success") for sensor in self.upstream_sensors]
         for key in self.scene_id_keys:
             for status_df in status_df_list:
-                status_df.loc[:, key] = status_df.conf.map(lambda x: x.get(key))
+                if key not in status_df.columns:
+                    status_df.loc[:, key] = status_df.conf.map(lambda x: x.get(key))
         return pd.concat(status_df_list).reset_index(drop=True)
 
     async def get_all_upstream_ready_scenes(self) -> List[dict]:
@@ -137,28 +117,36 @@ class RestAPIWatcher(BaseWatcher):
             list of upstream ready conf
         """
         ready_scenes = []
-        status_df = await self.get_all_upstream_status()
-        for skeys, subdf in status_df.groupby(self.scene_id_keys):
+        success_df = await self.get_all_success_upstream()
+        for skeys, subdf in success_df.groupby(self.scene_id_keys):
             if isinstance(skeys, str):
                 skeys = [skeys]
-            deps = []
-            for sensor in self.upstream_sensors:
-                if isinstance(sensor, DagSensor):
-                    dep_dag_run = subdf[subdf.dag_id == sensor.dag_id]
-                    assert len(dep_dag_run) <= 1, f"{sensor.dag_id} should have only one dag_run that matches {skeys}"
-                    if len(dep_dag_run) == 1 and dep_dag_run.state.iloc[0] == "success":
-                        deps.append(dep_dag_run.iloc[0].to_dict())
-                    continue
-                dep_task_instance = subdf[(subdf.dag_id == sensor.dag_id) & (subdf.task_id == sensor.task_id)]
-                assert (
-                    len(dep_task_instance) <= 1
-                ), f"{sensor.dag_id} should have only one task_instance {sensor.task_id} that matches {skeys}"
-                if len(dep_task_instance) == 1 and dep_task_instance.state.iloc[0] == "success":
-                    deps.append(dep_task_instance.iloc[0].to_dict())
-            if len(deps) == len(self.upstream_sensors):
+            num_success = sum([is_in_df(snr.query_key_values, subdf) for snr in self.upstream_sensors])
+            if num_success == len(self.upstream_sensors):
                 ready_scenes.append(
-                    {"scene_id_keys": {k: v for k, v in zip(self.scene_id_keys, skeys)}, "upstream": deps}
+                    {"scene_id_keys": {k: v for k, v in zip(self.scene_id_keys, skeys)}}
                 )
+
+            # deps = []
+            # for sensor in self.upstream_sensors:
+            #     if isinstance(sensor, DagSensor):
+            #         dep_dag_run = subdf[subdf.dag_id == sensor.dag_id]
+            #         assert len(dep_dag_run) <= 1, f"{sensor.dag_id} should have only one dag_run that matches {skeys}"
+            #         if len(dep_dag_run) == 1:
+            #             deps.append(dep_dag_run.iloc[0].to_dict())
+            #         continue
+            #     dep_task_instance = subdf[(subdf.dag_id == sensor.dag_id) & (subdf.task_id == sensor.task_id)]
+            #     assert (
+            #         len(dep_task_instance) <= 1
+            #     ), f"{sensor.dag_id} should have only one task_instance {sensor.task_id} that matches {skeys}"
+            #     if len(dep_task_instance) == 1:
+            #         deps.append(dep_task_instance.iloc[0].to_dict())
+            
+            # if len(deps) == len(self.upstream_sensors):
+            #     ready_scenes.append(
+            #         {"scene_id_keys": {k: v for k, v in zip(self.scene_id_keys, skeys)}, "upstream": deps}
+            #     )
+
         return ready_scenes
 
     async def get_existing_scenes(self) -> List[dict]:
@@ -171,7 +159,8 @@ class RestAPIWatcher(BaseWatcher):
         """
         dag_run_df = await get_dag_runs(self.api_url, self.batch_id, self.dag_id, self.cookies, to_dataframe=True)
         for key in self.scene_id_keys:
-            dag_run_df.loc[:, key] = dag_run_df.conf.map(lambda x: x.get(key))
+            if key not in dag_run_df.columns:
+                dag_run_df.loc[:, key] = dag_run_df.conf.map(lambda x: x.get(key))
         existing_scenes = []
         for i, row in dag_run_df.iterrows():
             scn = {k: v for k, v in zip(self.scene_id_keys, row[self.scene_id_keys].values)}

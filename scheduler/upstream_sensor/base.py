@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, List
 
 
 class UpstreamSensor:
@@ -21,3 +21,10 @@ class UpstreamSensor:
             _description_
         """
         raise NotImplementedError
+
+    @property
+    def query_key_values(self) -> List[str]:
+        raise NotImplementedError
+
+    def __repr__(self) -> str:
+        return str(self.query_key_values)

@@ -16,7 +16,7 @@ def cookies():
 
 
 @pytest.mark.asyncio
-async def test_get_all_upstream_status_mixed(cookies):
+async def test_get_all_success_upstream_mixed(cookies):
     watcher = RestAPIWatcher(
         "http://127.0.0.1:8080",
         None,
@@ -29,7 +29,7 @@ async def test_get_all_upstream_status_mixed(cookies):
         ["scene_id"],
         "conf/cookie_session",
     )
-    status_df = await watcher.get_all_upstream_status()
+    status_df = await watcher.get_all_success_upstream()
     pd.testing.assert_frame_equal(
         status_df[["dag_id", "dag_run_id", "dag_run_state", "scene_id", "task_id", "task_instance_state", "state"]],
         pd.concat(
@@ -62,12 +62,13 @@ async def test_get_all_upstream_status_mixed(cookies):
 
 
 @pytest.mark.asyncio
-@patch("scheduler.watcher.restapi_watcher.RestAPIWatcher.get_all_upstream_status", new_callable=AsyncMock)
+@patch("scheduler.watcher.restapi_watcher.RestAPIWatcher.get_all_success_upstream", new_callable=AsyncMock)
 async def test_get_all_ready_scene(mock_get_all_upstream_status):
     mock_get_all_upstream_status.return_value = pd.concat(
         [
             pd.DataFrame(
                 {
+                    "batch_id": ["a_batch_id"] * 12,
                     "dag_id": ["dag_for_unittest"] * 12,
                     "dag_run_id": ["manual__2023-12-20T03:38:06+00:00"] * 6 + ["fixed_a001"] * 6,
                     "dag_run_state": ["success"] * 12,
@@ -87,6 +88,7 @@ async def test_get_all_ready_scene(mock_get_all_upstream_status):
             ),
             pd.DataFrame(
                 {
+                    "batch_id": ["a_batch_id"],
                     "dag_id": ["dag_for_unittest_another"],
                     "dag_run_id": ["fixed_b001"],
                     "dag_run_state": ["success"],
@@ -100,12 +102,12 @@ async def test_get_all_ready_scene(mock_get_all_upstream_status):
     ).reset_index(drop=True)
     watcher = RestAPIWatcher(
         "http://127.0.0.1:8080",
-        None,
+        "a_batch_id",
         {},
         "downstream",
         [
-            TaskSensor("http://127.0.0.1:8080", None, "dag_for_unittest", "fisheye.task_inside_2", cookies), 
-            DagSensor("http://127.0.0.1:8080", None, "dag_for_unittest_another", cookies)
+            TaskSensor("http://127.0.0.1:8080", "a_batch_id", "dag_for_unittest", "fisheye.task_inside_2", cookies), 
+            DagSensor("http://127.0.0.1:8080", "a_batch_id", "dag_for_unittest_another", cookies)
         ],
         ["scene_id"],
         "conf/cookie_session",
@@ -117,7 +119,7 @@ async def test_get_all_ready_scene(mock_get_all_upstream_status):
 
 
 @pytest.mark.asyncio
-@patch("scheduler.watcher.restapi_watcher.RestAPIWatcher.get_all_upstream_status", new_callable=AsyncMock)
+@patch("scheduler.watcher.restapi_watcher.RestAPIWatcher.get_all_success_upstream", new_callable=AsyncMock)
 async def test_get_all_ready_scene_multi_scene_id_keys(mock_get_all_upstream_status):
     pass
 

@@ -5,6 +5,7 @@ pd.set_option("display.max_columns", None)
 
 from scheduler.upstream_sensor.dag_sensor import DagSensor
 from scheduler.upstream_sensor.task_sensor import TaskSensor
+from scheduler.upstream_sensor.static_scene_list_sensor import StaticSceneListSensor
 
 
 @pytest.fixture
@@ -91,4 +92,20 @@ async def test_task_sensor_with_state_failed(cookies):
                 "state": ["failed"],
             }
         ),
+    )
+
+
+@pytest.mark.asyncio
+async def test_static_scene_list_sensor():
+    sensor = StaticSceneListSensor("a_batch_id", [{"scene_id": "scn_001"}, {"scene_id": "scn_002"}])
+    status_df = await sensor.sense(state="success")
+    pd.testing.assert_frame_equal(
+        status_df,
+        pd.DataFrame(
+            {
+                "scene_id": ["scn_001", "scn_002"],
+                "batch_id": ["a_batch_id"] * 2,
+                "state": ["success"] * 2,
+            }
+        )
     )
