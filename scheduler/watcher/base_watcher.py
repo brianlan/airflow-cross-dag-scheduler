@@ -23,3 +23,9 @@ class BaseWatcher:
 
     async def trigger(self, context: dict) -> None:
         raise NotImplementedError
+
+
+class BatchEntry:
+    def __init__(self, scene_list: dict) -> None:
+        self.scene_list = scene_list
+                                                                                                                         

@@ -28,7 +28,7 @@ async def main():
     master_node = MasterNode(data)
 
     # API URL for Downstream Nodes
-    api_url = "https://example.com/api"
+    api_url = "http://127.0.0.1:8080"
 
     # Create Downstream Nodes
     downstream_nodes = [DownstreamNode(api_url) for _ in range(5)]

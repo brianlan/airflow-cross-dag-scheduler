@@ -1,0 +1,52 @@
+scene_list:
+  - scn_001
+  - scn_002
+  - scn_003
+  - scn_004
+  - scn_005
+
+watchers:
+  - dag_id: generate_base_data
+    class: RestAPIWatcher
+    fixed_dag_run_conf: 
+      - s3_bucket: mv-4d-annotation
+      - docker_image: ros:v1.0
+      - data_root: mv/data/scene_root
+    max_running_dag_runs: 3
+    scene_id_keys: ["scene_id"]
+    use_scene_id_keys_as_dag_run_id: True
+
+  - dag_id: nvidia_segmentation
+    class: RestAPIWatcher
+    fixed_dag_run_conf: 
+      - docker_image: nvidia-seg:v1.0
+      - data_root: mv/data/scene_root
+      - output_dir: seg
+    max_running_dag_runs: 3
+    scene_id_keys: ["scene_id"]
+    use_scene_id_keys_as_dag_run_id: False
+    upstream:
+      - {"dag_id": "generate_base_data", "task_id": "generate_image"} 
+
+  - dag_id: generate_ipm
+    class: RestAPIWatcher
+    fixed_dag_run_conf: 
+      - image: ipm_slot:v1.0
+      - input_root: mv/data/scene_root
+    max_running_dag_runs: 3
+    scene_id_keys: ["scene_id"]
+    use_scene_id_keys_as_dag_run_id: True
+    upstream:
+      - {"dag_id": "generate_base_data"} 
+      - {"dag_id": "nvidia_segmentation", "task_id": "fisheye"} 
+
+  - dag_id: image_undistort
+    class: RestAPIWatcher
+    fixed_dag_run_conf: 
+      - image: slam:v1.0
+      - s5_params: "--endpoint-url http://192.168.1.1:9000"
+    max_running_dag_runs: 3
+    scene_id_keys: ["scene_id"]
+    use_scene_id_keys_as_dag_run_id: True
+    upstream:
+      - {"dag_id": "generate_base_data"}
