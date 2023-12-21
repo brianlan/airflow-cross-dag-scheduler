@@ -102,7 +102,7 @@ class RestAPIWatcher(BaseWatcher):
         task_instances = resp_json["task_instances"]
         if to_dataframe:
             task_instances = pd.DataFrame.from_records(task_instances)
-            task_instances.rename(columns={"state": "task_state"}, inplace=True)
+            task_instances.rename(columns={"state": "task_instance_state"}, inplace=True)
         return task_instances
 
     async def get_tasks(self, dag_id: str) -> List[dict]:
@@ -193,7 +193,7 @@ class RestAPIWatcher(BaseWatcher):
                 task_instances.append(await self.get_taskinstances(dep["dag_id"], dag_run_id, to_dataframe=True))
             task_instance_df = pd.concat(task_instances).reset_index(drop=True)
             status_df = pd.merge(dag_run_df, task_instance_df, how="inner", on=["dag_id", "dag_run_id"])
-            status_df.loc[:, "state"] = status_df.apply(lambda x: x.dag_run_state if pd.isnull(x.task_state) else x.task_state, axis=1)
+            status_df.loc[:, "state"] = status_df.apply(lambda x: x.dag_run_state if pd.isnull(x.task_instance_state) else x.task_instance_state, axis=1)
             status_df_list.append(status_df)
 
         return pd.concat(status_df_list).reset_index(drop=True)
@@ -207,7 +207,22 @@ class RestAPIWatcher(BaseWatcher):
             list of upstream ready conf
         """
         ready_scenes = []
-        status_df = self.get_all_upstream_status()
+        status_df = await self.get_all_upstream_status()
         for skeys, subdf in status_df.groupby(self.scene_id_keys):
+            if isinstance(skeys, str):
+                skeys = [skeys]
             deps = []
             for dep in self.upstream:
+                if 'task_id' not in dep:
+                    dep_dag_run = subdf[subdf.dag_id == dep['dag_id']]
+                    assert len(dep_dag_run) <= 1, f"{dep['dag_id']} should have only one dag_run that matches {skeys}"
+                    if len(dep_dag_run) == 1 and dep_dag_run.state.iloc[0] == "success":
+                        deps.append(dep_dag_run.iloc[0].to_dict())
+                    continue
+                dep_task_instance = subdf[(subdf.dag_id == dep['dag_id']) & (subdf.task_id == dep['task_id'])]
+                assert len(dep_task_instance) <= 1, f"{dep['dag_id']} should have only one task_instance {dep['task_id']} that matches {skeys}"
+                if len(dep_task_instance) == 1 and dep_task_instance.state.iloc[0] == "success":
+                    deps.append(dep_task_instance.iloc[0].to_dict())
+            if len(deps) == len(self.upstream):
+                ready_scenes.append({"scene_id_keys": {k: v for k, v in zip(self.scene_id_keys, skeys)}, "upstream": deps})
+        return ready_scenes
