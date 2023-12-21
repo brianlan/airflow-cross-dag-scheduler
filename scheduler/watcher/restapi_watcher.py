@@ -1,8 +1,11 @@
-from typing import List, Union
+from typing import List
 
 import pandas as pd
 
+from ..helpers.airflow_api import get_dag_runs
 from ..helpers import aiohttp_requests as ar
+from ..upstream_sensor.base import UpstreamSensor
+from ..upstream_sensor.dag_sensor import DagSensor
 from .base_watcher import BaseWatcher, WatchResult
 
 
@@ -13,7 +16,7 @@ class RestAPIWatcher(BaseWatcher):
         batch_id: str,
         dag_id: str,
         fixed_dag_run_conf: dict,
-        upstream: List[dict],
+        upstream_sensors: List[UpstreamSensor],
         scene_id_keys: List[str],
         cookie_session_path: str,
         max_running_dag_runs: int = 3,
@@ -29,9 +32,9 @@ class RestAPIWatcher(BaseWatcher):
             the batch_id that the watcher is caring about, for example "baidu_integration_test"
         dag_id : str
             the dag_id that the watcher is watching
-        upstream : List[dict]
+        upstream_sensors : List[UpstreamSensor]
             descriptions of the upstream dag / task
-            For example:
+            A demonstration example (we don't factually use that):
             upstream = [
                 {"dag_id": "generate_base_data", "task_id": "generate_image"},
                 {"dag_id": "optimize_ipm"},
@@ -53,16 +56,18 @@ class RestAPIWatcher(BaseWatcher):
 
         # check the input's validity
         assert len(scene_id_keys) > 0, "scene_id_keys should not be empty"
-        assert len(upstream) == len(
-            {u["dag_id"] for u in upstream}
+        assert len(upstream_sensors) == len(
+            {u.dag_id for u in upstream_sensors}
         ), "the same dag_id appears more than once in upstream definition."
 
         self.batch_id = batch_id
         self.api_url = api_url
         self.dag_id = dag_id
         self.scene_id_keys = scene_id_keys
-        self.upstream = upstream
+        self.fixed_dag_run_conf = fixed_dag_run_conf
+        self.upstream_sensors = upstream_sensors
         self.max_running_dag_runs = max_running_dag_runs
+        self.use_scene_id_keys_as_dag_run_id = use_scene_id_keys_as_dag_run_id
         self.cookies = {"session": self.read_cookie_session(cookie_session_path)}
 
     def read_cookie_session(self, path):
@@ -96,82 +101,6 @@ class RestAPIWatcher(BaseWatcher):
             dag_run_id = "_".join([f"{k}:{v}" for k, v in context["scene_id_keys"].items()])
         status, json_data = await self.trigger_dag(self.dag_id, dag_conf=dag_conf, dag_run_id=dag_run_id)
 
-    async def get_dag_runs(self, dag_id: str, to_dataframe: bool = False) -> Union[List[dict], pd.DataFrame]:
-        """Get all the DagRuns of `dag_id` with the same batch_id as self.batch_id using Airflow RESTAPI:
-        http://{api_url}/api/v1/dags/{dag_id}/dagRuns
-
-        Parameters
-        ----------
-        dag_id : str
-            dag id
-        to_dataframe : bool, optional
-            if True, will convert list of dagruns (dict) into pandas.DataFrame, by default False.
-
-        Returns
-        -------
-        Union[List[dict], pd.DataFrame]
-            dag runs info
-        """
-        url = f"{self.api_url}/api/v1/dags/{dag_id}/dagRuns"
-        status, json_data = await ar.get(url, cookies=self.cookies)
-        dag_runs = json_data["dag_runs"]
-        # if get_taskinstance:
-        #     for dagrun in dagruns:
-        #         dagrun['task_instances'] = await self.get_taskinstances(dag_id, dagrun['dag_run_id'])
-        dag_runs = [dr for dr in dag_runs if dr["conf"].get("batch_id") == self.batch_id]
-        if to_dataframe:
-            for dr in dag_runs:
-                dr["batch_id"] = dr["conf"].get("batch_id")
-                for key in self.scene_id_keys:
-                    dr[key] = dr["conf"][key]
-            dag_runs = pd.DataFrame.from_records(dag_runs)
-            dag_runs.rename(columns={"state": "dag_run_state"}, inplace=True)
-        return dag_runs
-
-    async def get_taskinstances(self, dag_id: str, dag_run_id: str, to_dataframe: bool = False) -> list:
-        """Get all the taskinstance status of a DagRun using Airflow RestAPI:
-        http://{api_url}/api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances
-
-        Parameters
-        ----------
-        dag_id : str
-            dag id
-        dag_run_id : str
-            dagRun id
-        to_dataframe : bool, optional
-            if True, will convert list of dagruns (dict) into pandas.DataFrame, by default False.
-
-        Returns
-        -------
-        list
-            list of taskinstance info
-        """
-        url = f"{self.api_url}/api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances"
-        status, json_data = await ar.get(url, cookies=self.cookies)
-        task_instances = json_data["task_instances"]
-        if to_dataframe:
-            task_instances = pd.DataFrame.from_records(task_instances)
-            task_instances.rename(columns={"state": "task_instance_state"}, inplace=True)
-        return task_instances
-
-    async def get_tasks(self, dag_id: str) -> List[dict]:
-        """Get static task definitions of a given dag_id
-
-        Parameters
-        ----------
-        dag_id : str
-            dag id
-
-        Returns
-        -------
-        List[dict]
-            _description_
-        """
-        url = f"{self.api_url}/api/v1/dags/{dag_id}/tasks"
-        status, json_data = await ar.get(url, cookies=self.cookies)
-        tasks = json_data["tasks"]
-        return tasks
-
     async def trigger_dag(self, dag_id: str, dag_conf: dict = None, dag_run_id: str = None) -> None:
         """Trigger a DagRun using Airflow RestAPI:
         https://{api_url}/api/v1/dags/{dag_id}/dagRuns
@@ -193,27 +122,7 @@ class RestAPIWatcher(BaseWatcher):
         return await ar.post(url, payload, cookies=self.cookies)
 
     async def get_all_upstream_status(self) -> pd.DataFrame:
-        status_df_list = []
-        for dep in self.upstream:
-            if "task_group_id" in dep:
-                raise NotImplementedError("task_group_id is not supported yet")
-            dag_run_df = await self.get_dag_runs(dep["dag_id"], to_dataframe=True)
-
-            if "task_id" not in dep:
-                dag_run_df.loc[:, "state"] = dag_run_df.dag_run_state
-                status_df_list.append(dag_run_df)
-                continue
-
-            task_instances = []
-            for dag_run_id in dag_run_df["dag_run_id"]:
-                task_instances.append(await self.get_taskinstances(dep["dag_id"], dag_run_id, to_dataframe=True))
-            task_instance_df = pd.concat(task_instances).reset_index(drop=True)
-            status_df = pd.merge(dag_run_df, task_instance_df, how="inner", on=["dag_id", "dag_run_id"])
-            status_df.loc[:, "state"] = status_df.apply(
-                lambda x: x.dag_run_state if pd.isnull(x.task_instance_state) else x.task_instance_state, axis=1
-            )
-            status_df_list.append(status_df)
-
+        status_df_list = [await sensor.sense() for sensor in self.upstream_sensors]
         return pd.concat(status_df_list).reset_index(drop=True)
 
     async def get_all_upstream_ready_scenes(self) -> List[dict]:
@@ -230,20 +139,20 @@ class RestAPIWatcher(BaseWatcher):
             if isinstance(skeys, str):
                 skeys = [skeys]
             deps = []
-            for dep in self.upstream:
-                if "task_id" not in dep:
-                    dep_dag_run = subdf[subdf.dag_id == dep["dag_id"]]
-                    assert len(dep_dag_run) <= 1, f"{dep['dag_id']} should have only one dag_run that matches {skeys}"
+            for sensor in self.upstream_sensors:
+                if isinstance(sensor, DagSensor):
+                    dep_dag_run = subdf[subdf.dag_id == sensor.dag_id]
+                    assert len(dep_dag_run) <= 1, f"{sensor.dag_id} should have only one dag_run that matches {skeys}"
                     if len(dep_dag_run) == 1 and dep_dag_run.state.iloc[0] == "success":
                         deps.append(dep_dag_run.iloc[0].to_dict())
                     continue
-                dep_task_instance = subdf[(subdf.dag_id == dep["dag_id"]) & (subdf.task_id == dep["task_id"])]
+                dep_task_instance = subdf[(subdf.dag_id == sensor.dag_id) & (subdf.task_id == sensor.task_id)]
                 assert (
                     len(dep_task_instance) <= 1
-                ), f"{dep['dag_id']} should have only one task_instance {dep['task_id']} that matches {skeys}"
+                ), f"{sensor.dag_id} should have only one task_instance {sensor.task_id} that matches {skeys}"
                 if len(dep_task_instance) == 1 and dep_task_instance.state.iloc[0] == "success":
                     deps.append(dep_task_instance.iloc[0].to_dict())
-            if len(deps) == len(self.upstream):
+            if len(deps) == len(self.upstream_sensors):
                 ready_scenes.append(
                     {"scene_id_keys": {k: v for k, v in zip(self.scene_id_keys, skeys)}, "upstream": deps}
                 )
@@ -257,7 +166,7 @@ class RestAPIWatcher(BaseWatcher):
         List[dict]
             list of existing scenes, each scene is a dict of {scene_id_key[0]: scene_id_value[0], scene_id_key[1]: scene_id_value[1], ...}
         """
-        dag_run_df = await self.get_dag_runs(self.dag_id, to_dataframe=True)
+        dag_run_df = await get_dag_runs(self.api_url, self.batch_id, self.dag_id, self.cookies, scene_id_keys=self.scene_id_keys, to_dataframe=True)
         existing_scenes = []
         for i, row in dag_run_df.iterrows():
             scn = {k: v for k, v in zip(self.scene_id_keys, row[self.scene_id_keys].values)}

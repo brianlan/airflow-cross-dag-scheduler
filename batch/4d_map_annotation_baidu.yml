@@ -15,6 +15,8 @@ watchers:
     max_running_dag_runs: 3
     scene_id_keys: ["scene_id"]
     use_scene_id_keys_as_dag_run_id: True
+    upstream: 
+      - "sence_list"
 
   - dag_id: nvidia_segmentation
     class: RestAPIWatcher
