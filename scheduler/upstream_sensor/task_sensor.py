@@ -1,5 +1,3 @@
-from typing import Any
-
 import pandas as pd
 
 from ..helpers.airflow_api import get_dag_runs, get_task_instance
@@ -15,7 +13,7 @@ class TaskSensor(UpstreamSensor):
         self.task_id = task_id
         self.cookies = cookies
 
-    async def sense(self) -> pd.DataFrame:
+    async def sense(self, state: str = None) -> pd.DataFrame:
         dag_run_df = await get_dag_runs(self.api_url, self.batch_id, self.dag_id, self.cookies, to_dataframe=True)
 
         task_instances = []
@@ -26,9 +24,15 @@ class TaskSensor(UpstreamSensor):
                 )
             )
         task_instance_df = pd.concat(task_instances).reset_index(drop=True)
+
+        assert len(dag_run_df) == len(task_instance_df), "#taskInstances should match #dagRuns"
+
         status_df = pd.merge(dag_run_df, task_instance_df, how="inner", on=["dag_id", "dag_run_id"])
-        status_df.loc[:, "state"] = status_df.apply(
-            lambda x: x.dag_run_state if pd.isnull(x.task_instance_state) else x.task_instance_state, axis=1
-        )
+        if state is not None:
+            status_df = status_df[status_df.task_instance_state == state].reset_index(drop=True)
+        status_df.loc[:, "state"] = status_df.task_instance_state
+        # status_df.loc[:, "state"] = status_df.apply(
+        #     lambda x: x.dag_run_state if pd.isnull(x.task_instance_state) else x.task_instance_state, axis=1
+        # )
 
         return status_df

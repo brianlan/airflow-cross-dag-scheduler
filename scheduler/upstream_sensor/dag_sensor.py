@@ -27,7 +27,9 @@ class DagSensor(UpstreamSensor):
         self.dag_id = dag_id
         self.cookies = cookies
 
-    async def sense(self) -> pd.DataFrame:
+    async def sense(self, state: str = None) -> pd.DataFrame:
         dag_run_df = await get_dag_runs(self.api_url, self.batch_id, self.dag_id, self.cookies, to_dataframe=True)
+        if state is not None:
+            dag_run_df = dag_run_df[dag_run_df.dag_run_state == state].reset_index(drop=True)
         dag_run_df.loc[:, "state"] = dag_run_df.dag_run_state
         return dag_run_df

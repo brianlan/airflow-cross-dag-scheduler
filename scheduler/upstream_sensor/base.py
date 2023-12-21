@@ -2,5 +2,22 @@ from typing import Any
 
 
 class UpstreamSensor:
-    async def sense(self) -> Any:
+    async def sense(self, state: str = None) -> Any:
+        """sense the state of the upstream
+
+        Parameters
+        ----------
+        state : str, optional
+            if provided will return the ones that has this state, by default None
+
+        Returns
+        -------
+        Any
+            _description_
+
+        Raises
+        ------
+        NotImplementedError
+            _description_
+        """
         raise NotImplementedError
