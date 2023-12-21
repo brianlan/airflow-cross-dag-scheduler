@@ -4,7 +4,7 @@ from typing import List, Union
 
 import pandas as pd
 
-from ..helpers import aiohttp_requests as aio
+from ..helpers import aiohttp_requests as ar
 from .base_watcher import BaseWatcher
 
 
@@ -66,8 +66,8 @@ class RestAPIWatcher(BaseWatcher):
             dag runs info
         """
         url = f"{self.api_url}/api/v1/dags/{dag_id}/dagRuns"
-        resp_json = await aio.get(url, cookies=self.cookies)
-        dag_runs = resp_json["dag_runs"]
+        status, json_data = await ar.get(url, cookies=self.cookies)
+        dag_runs = json_data["dag_runs"]
         # if get_taskinstance:
         #     for dagrun in dagruns:
         #         dagrun['task_instances'] = await self.get_taskinstances(dag_id, dagrun['dag_run_id'])
@@ -98,8 +98,8 @@ class RestAPIWatcher(BaseWatcher):
             list of taskinstance info
         """
         url = f"{self.api_url}/api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances"
-        resp_json = await aio.get(url, cookies=self.cookies)
-        task_instances = resp_json["task_instances"]
+        status, json_data = await ar.get(url, cookies=self.cookies)
+        task_instances = json_data["task_instances"]
         if to_dataframe:
             task_instances = pd.DataFrame.from_records(task_instances)
             task_instances.rename(columns={"state": "task_instance_state"}, inplace=True)
@@ -119,8 +119,8 @@ class RestAPIWatcher(BaseWatcher):
             _description_
         """
         url = f"{self.api_url}/api/v1/dags/{dag_id}/tasks"
-        resp_json = await aio.get(url, cookies=self.cookies)
-        tasks = resp_json["tasks"]
+        status, json_data = await ar.get(url, cookies=self.cookies)
+        tasks = json_data["tasks"]
         return tasks
 
     async def trigger_dag(self, dag_id: str, dag_conf: dict = None, dag_run_id: str = None) -> None:
@@ -147,34 +147,6 @@ class RestAPIWatcher(BaseWatcher):
                     # Handle error
                     pass
 
-    async def all_upstream_success(self, scene_definition: dict) -> bool:
-        """Check whether all the upstreams are success for the keys definition
-
-        Parameters
-        ----------
-        scene_definition : dict
-            A series of key-value pairs that represent the scene (an abstract concept, 
-                roughly equals to scene_id + split_id, or we can call it data_id)
-            For example:
-            scene_definition = {"scene_id": "20131101_scene", "split_id": "0"}
-
-        Returns
-        -------
-        bool
-            _description_
-        """
-        for upstream_dag in self.upstream:
-            dag_id = upstream_dag['dag_id']
-            dag_runs = await self.get_dag_runs(dag_id, get_taskinstance=True)
-            # Add logic to check if any dag run matches scene_definition and is successful
-            # This will depend on the structure of your scene_definition and the response from Airflow
-        return True  # If all checks are passed
-
-    async def is_dag_run_success(self, dag_id: str, dag_run_id: str, scene_definition: dict) -> bool:
-        pass
-
-    async def is_taskinstance_success(self, dag_id: str, dag_run_id: str, task_id: str, scene_definition: dict) -> bool:
-        pass
 
     async def get_all_upstream_status(self) -> pd.DataFrame:
         status_df_list = []

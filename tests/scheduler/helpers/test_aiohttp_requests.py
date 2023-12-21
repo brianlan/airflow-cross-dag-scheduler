@@ -1,14 +1,15 @@
 import pytest
 
-from scheduler.helpers import aiohttp_requests as aio
+from scheduler.helpers import aiohttp_requests as ar
 from scheduler.helpers.base import async_read_cookie_session
 
 
 @pytest.mark.asyncio
 async def test_get_dag_id():
     cookies = {"session": await async_read_cookie_session("conf/cookie_session")}
-    result = await aio.get("http://127.0.0.1:8080/api/v1/dags/dag_for_unittest", cookies=cookies)
+    status, result = await ar.get("http://127.0.0.1:8080/api/v1/dags/dag_for_unittest", cookies=cookies)
     result.pop("last_parsed_time")
+    assert status == 200
     assert result == {
         "dag_id": "dag_for_unittest",
         "default_view": "grid",
