@@ -24,7 +24,7 @@ async def test_get_dag_runs_with_batch_id(cookies):
 @pytest.mark.asyncio
 async def test_get_task_instance(cookies):
     ti = await get_task_instance("http://127.0.0.1:8080", "dag_for_unittest", "fixed_a001", "final_task", cookies, to_dataframe=False)
-    assert ti == {
+    assert ti == [{
         "dag_id": "dag_for_unittest",
         "dag_run_id": "fixed_a001",
         "duration": 0.124446,
@@ -51,7 +51,7 @@ async def test_get_task_instance(cookies):
         "triggerer_job": None,
         "try_number": 1,
         "unixname": "default",
-    }
+    }]
 
 
 @pytest.mark.asyncio

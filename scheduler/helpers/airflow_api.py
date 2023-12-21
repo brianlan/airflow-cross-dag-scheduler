@@ -1,4 +1,4 @@
-from typing import Sequence
+from typing import Sequence, Union, List
 
 import pandas as pd
 
@@ -12,7 +12,7 @@ async def get_dag_runs(
     cookies: dict,
     to_dataframe: bool = False,
     scene_id_keys: Sequence[str] = None,
-):
+) -> Union[List[dict], pd.DataFrame]:
     """Get all the DagRuns of `dag_id` with the same batch_id as batch_id using Airflow RESTAPI:
     http://{api_url}/api/v1/dags/{dag_id}/dagRuns
 
@@ -51,7 +51,7 @@ async def get_dag_runs(
 
 async def get_task_instances(
     api_url: str, dag_id: str, dag_run_id: str, cookies: dict, to_dataframe: bool = False
-) -> list:
+) -> Union[List[dict], pd.DataFrame]:
     """Get single task instance status of a DagRun using Airflow RestAPI:
     http://{api_url}/api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances
 
@@ -70,7 +70,7 @@ async def get_task_instances(
 
     Returns
     -------
-    list
+    Union[List[dict], pd.DataFrame]
         list of task instance info
     """
     url = f"{api_url}/api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances"
@@ -84,7 +84,7 @@ async def get_task_instances(
 
 async def get_task_instance(
     api_url: str, dag_id: str, dag_run_id: str, task_id: str, cookies: dict, to_dataframe: bool = False
-) -> list:
+) -> Union[List[dict], pd.DataFrame]:
     """Get all the task instance status of a DagRun using Airflow RestAPI:
     http://{api_url}/api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}
 
@@ -105,12 +105,13 @@ async def get_task_instance(
 
     Returns
     -------
-    list
+    Union[List[dict], pd.DataFrame]
         list of task instance info
     """
     url = f"{api_url}/api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}"
     status, ti = await ar.get(url, cookies=cookies)
+    ti = [ti]
     if to_dataframe:
-        ti = pd.DataFrame.from_records([ti])
+        ti = pd.DataFrame.from_records(ti)
         ti.rename(columns={"state": "task_instance_state"}, inplace=True)
     return ti
