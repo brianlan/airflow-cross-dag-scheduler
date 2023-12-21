@@ -1,42 +1,35 @@
+from pathlib import Path
 import asyncio
 import signal
+import yaml
+import argparse
 
+from scheduler.watcher.base_watcher import create_watcher
+from scheduler.helpers.base import read_cookie_session
 
-class MasterNode:
-    def __init__(self, data):
-        self.data = data
-
-    async def run(self):
-        while True:
-            # Process the data
-            await asyncio.sleep(1)  # Simulate processing delay
-
-
-class DownstreamNode:
-    def __init__(self, api_url):
-        self.api_url = api_url
-
-    async def run(self):
-        while True:
-            # Query the REST API and trigger action
-            await asyncio.sleep(1)  # Simulate query delay
+parser = argparse.ArgumentParser()
+parser.add_argument("--batch-config", type=Path, required=True, help="path to batch config file")
+parser.add_argument("--cookie-session-path", type=Path, required=True, help="path to the session ")
+parser.add_argument("--api-url", default="http://127.0.0.1:8080")
 
 
 async def main():
-    # Predefined data for the Master Node
-    data = ["data1", "data2", "data3"]
-    master_node = MasterNode(data)
+    # get args
+    args = parser.parse_args()
 
-    # API URL for Downstream Nodes
-    api_url = "http://127.0.0.1:8080"
-
-    # Create Downstream Nodes
-    downstream_nodes = [DownstreamNode(api_url) for _ in range(5)]
+    # read batch config
+    batch_id = args.batch_config.stem
+    cookies = {"session": read_cookie_session(args.cookie_session_path)}
+    with open(args.batch_config, "r") as f:
+        cfg = yaml.safe_load(f)
+    
+    # create Watchers
+    watchers = [create_watcher(args.api_url, batch_id, cookies, wc) for wc in cfg["watchers"]]
 
     # Launch all nodes
-    tasks = [asyncio.create_task(master_node.run())] + [asyncio.create_task(node.run()) for node in downstream_nodes]
+    asyncio_tasks = [asyncio.create_task(node.run()) for node in watchers]
 
-    await asyncio.gather(*tasks)
+    await asyncio.gather(*asyncio_tasks)
 
 
 def stop_loop(signum, frame):

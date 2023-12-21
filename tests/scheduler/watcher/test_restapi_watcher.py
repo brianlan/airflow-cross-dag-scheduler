@@ -20,14 +20,13 @@ async def test_get_all_success_upstream_mixed(cookies):
     watcher = RestAPIWatcher(
         "http://127.0.0.1:8080",
         None,
-        "downstream",
-        {},
+        cookies,
         [
-            TaskSensor("http://127.0.0.1:8080", None, "dag_for_unittest", "fisheye.task_inside_2", cookies), 
-            DagSensor("http://127.0.0.1:8080", None, "dag_for_unittest_another", cookies)
+            TaskSensor("http://127.0.0.1:8080", None, cookies, dag_id="dag_for_unittest", task_id="fisheye.task_inside_2"), 
+            DagSensor("http://127.0.0.1:8080", None, cookies, dag_id="dag_for_unittest_another")
         ],
-        ["scene_id"],
-        "conf/cookie_session",
+        dag_id="downstream",
+        scene_id_keys=["scene_id"],
     )
     status_df = await watcher.get_all_success_upstream()
     pd.testing.assert_frame_equal(
@@ -63,7 +62,7 @@ async def test_get_all_success_upstream_mixed(cookies):
 
 @pytest.mark.asyncio
 @patch("scheduler.watcher.restapi_watcher.RestAPIWatcher.get_all_success_upstream", new_callable=AsyncMock)
-async def test_get_all_ready_scene(mock_get_all_upstream_status):
+async def test_get_all_ready_scene(mock_get_all_upstream_status, cookies):
     mock_get_all_upstream_status.return_value = pd.concat(
         [
             pd.DataFrame(
@@ -103,14 +102,13 @@ async def test_get_all_ready_scene(mock_get_all_upstream_status):
     watcher = RestAPIWatcher(
         "http://127.0.0.1:8080",
         "a_batch_id",
-        {},
-        "downstream",
+        cookies,
         [
-            TaskSensor("http://127.0.0.1:8080", "a_batch_id", "dag_for_unittest", "fisheye.task_inside_2", cookies), 
-            DagSensor("http://127.0.0.1:8080", "a_batch_id", "dag_for_unittest_another", cookies)
+            TaskSensor("http://127.0.0.1:8080", "a_batch_id", cookies, dag_id="dag_for_unittest", task_id="fisheye.task_inside_2"), 
+            DagSensor("http://127.0.0.1:8080", "a_batch_id", cookies, dag_id="dag_for_unittest_another")
         ],
-        ["scene_id"],
-        "conf/cookie_session",
+        dag_id="downstream",
+        scene_id_keys=["scene_id"],
     )
     result = await watcher.get_all_upstream_ready_scenes()
     assert len(result) == 1
@@ -129,14 +127,13 @@ async def test_get_existing_scenes(cookies):
     watcher = RestAPIWatcher(
         "http://127.0.0.1:8080",
         "baidu_integration_test",
-        "downstream",
-        {},
+        cookies,
         [
-            TaskSensor("http://127.0.0.1:8080", None, "dag_for_unittest", "fisheye.task_inside_2", cookies), 
-            DagSensor("http://127.0.0.1:8080", None, "dag_for_unittest_another", cookies)
+            TaskSensor("http://127.0.0.1:8080", None, cookies, dag_id="dag_for_unittest", task_id="fisheye.task_inside_2"), 
+            DagSensor("http://127.0.0.1:8080", None, cookies, dag_id="dag_for_unittest_another")
         ],
-        ["scene_id"],
-        "conf/cookie_session",
+        dag_id="downstream",
+        scene_id_keys=["scene_id"],
     )
     existing_scenes = await watcher.get_existing_scenes()
     assert existing_scenes == [

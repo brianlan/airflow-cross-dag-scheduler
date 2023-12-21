@@ -12,9 +12,10 @@ from scheduler.upstream_sensor.static_scene_list_sensor import StaticSceneListSe
 def cookies():
     return {"session": "b9c867dc-5319-4ad4-97e0-6474260b10de.x5LW6WQ0sSpk_vARkCsQzQfpXDE"}
 
+
 @pytest.mark.asyncio
 async def test_dag_sensor(cookies):
-    sensor = DagSensor("http://127.0.0.1:8080", None, "dag_for_unittest", cookies)
+    sensor = DagSensor("http://127.0.0.1:8080", None, cookies, dag_id="dag_for_unittest")
     status_df = await sensor.sense()
     status_df.loc[:, "scene_id"] = status_df.conf.map(lambda x: x.get("scene_id"))
     pd.testing.assert_frame_equal(
@@ -33,7 +34,7 @@ async def test_dag_sensor(cookies):
 
 @pytest.mark.asyncio
 async def test_dag_sensor_with_state_success(cookies):
-    sensor = DagSensor("http://127.0.0.1:8080", "baidu_integration_test", "downstream", cookies)
+    sensor = DagSensor("http://127.0.0.1:8080", "baidu_integration_test", cookies, dag_id="downstream")
     status_df = await sensor.sense(state="success")
     status_df.loc[:, "scene_id"] = status_df.conf.map(lambda x: x.get("scene_id"))
     pd.testing.assert_frame_equal(
@@ -51,10 +52,11 @@ async def test_dag_sensor_with_state_success(cookies):
     )
 
 
-
 @pytest.mark.asyncio
 async def test_task_sensor(cookies):
-    sensor = TaskSensor("http://127.0.0.1:8080", None, "dag_for_unittest", "fisheye.task_inside_2", cookies)
+    sensor = TaskSensor(
+        "http://127.0.0.1:8080", None, cookies, dag_id="dag_for_unittest", task_id="fisheye.task_inside_2"
+    )
     status_df = await sensor.sense()
     status_df.loc[:, "scene_id"] = status_df.conf.map(lambda x: x.get("scene_id"))
     pd.testing.assert_frame_equal(
@@ -75,11 +77,13 @@ async def test_task_sensor(cookies):
 
 @pytest.mark.asyncio
 async def test_task_sensor_with_state_failed(cookies):
-    sensor = TaskSensor("http://127.0.0.1:8080", "not_tracked", "downstream", "random_fail", cookies)
+    sensor = TaskSensor("http://127.0.0.1:8080", "not_tracked", cookies, dag_id="downstream", task_id="random_fail")
     status_df = await sensor.sense(state="failed")
     status_df.loc[:, "scene_id"] = status_df.conf.map(lambda x: x.get("scene_id"))
     pd.testing.assert_frame_equal(
-        status_df[["batch_id", "dag_id", "dag_run_id", "dag_run_state", "scene_id", "task_id", "task_instance_state", "state"]],
+        status_df[
+            ["batch_id", "dag_id", "dag_run_id", "dag_run_state", "scene_id", "task_id", "task_instance_state", "state"]
+        ],
         pd.DataFrame(
             {
                 "batch_id": ["not_tracked"],
@@ -97,7 +101,9 @@ async def test_task_sensor_with_state_failed(cookies):
 
 @pytest.mark.asyncio
 async def test_static_scene_list_sensor():
-    sensor = StaticSceneListSensor("a_batch_id", [{"scene_id": "scn_001"}, {"scene_id": "scn_002"}])
+    sensor = StaticSceneListSensor(
+        "http", "a_batch_id", {}, scene_list=[{"scene_id": "scn_001"}, {"scene_id": "scn_002"}]
+    )
     status_df = await sensor.sense(state="success")
     pd.testing.assert_frame_equal(
         status_df,
@@ -107,5 +113,5 @@ async def test_static_scene_list_sensor():
                 "batch_id": ["a_batch_id"] * 2,
                 "state": ["success"] * 2,
             }
-        )
+        ),
     )

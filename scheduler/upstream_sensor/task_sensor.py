@@ -5,7 +5,9 @@ from .base import UpstreamSensor
 
 
 class TaskSensor(UpstreamSensor):
-    def __init__(self, api_url: str, batch_id: str, dag_id: str, task_id: str, cookies: dict) -> None:
+    def __init__(
+        self, api_url: str, batch_id: str, cookies: dict, dag_id: str = None, task_id: str = None, **kwargs
+    ) -> None:
         super().__init__()
         self.api_url = api_url
         self.batch_id = batch_id

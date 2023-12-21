@@ -1,4 +1,5 @@
 from typing import Any, List
+import importlib
 
 
 class UpstreamSensor:
@@ -28,3 +29,10 @@ class UpstreamSensor:
 
     def __repr__(self) -> str:
         return str(self.query_key_values)
+
+
+def create_sensor(api_url, batch_id, cookies, scfg) -> UpstreamSensor:
+    module, cls = scfg.pop("class").rsplit(".", 1)
+    sensor_cls = getattr(importlib.import_module(module), cls)
+    sensor = sensor_cls(api_url, batch_id, cookies, **scfg["args"])
+    return sensor

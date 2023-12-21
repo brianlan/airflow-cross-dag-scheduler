@@ -6,7 +6,7 @@ from .base import UpstreamSensor
 
 
 class StaticSceneListSensor(UpstreamSensor):
-    def __init__(self, batch_id: str, scene_list: List[dict]) -> None:
+    def __init__(self, api_url: str, batch_id: str, cookies: dict, scene_list: List[dict] = None) -> None:
         """_summary_
 
         Parameters
@@ -17,6 +17,7 @@ class StaticSceneListSensor(UpstreamSensor):
             predefined scene list
         """
         super().__init__()
+        self.api_url = api_url
         self.batch_id = batch_id
         self.scene_list = scene_list
 
@@ -27,7 +28,7 @@ class StaticSceneListSensor(UpstreamSensor):
         if state:
             scene_list_df = scene_list_df[scene_list_df.state == state].reset_index(drop=True)
         return scene_list_df
-    
+
     @property
     def query_key_values(self) -> list[str]:
         return {"batch_id": self.batch_id}

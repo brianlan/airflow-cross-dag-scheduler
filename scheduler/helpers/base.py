@@ -6,6 +6,11 @@ async def async_read_cookie_session(path):
     return cookie_session.strip()
 
 
+def read_cookie_session(path):
+    with open(path, "r") as f:
+        return f.read().strip()
+
+
 def is_in_df(query_key_values, df):
     query_str = " and ".join([f"{k} == '{v}'" for k, v in query_key_values.items()])
     return len(df.query(query_str)) > 0

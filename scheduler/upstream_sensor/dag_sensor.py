@@ -7,7 +7,7 @@ from .base import UpstreamSensor
 
 
 class DagSensor(UpstreamSensor):
-    def __init__(self, api_url: str, batch_id: str, dag_id: str, cookies: dict) -> None:
+    def __init__(self, api_url: str, batch_id: str, cookies: dict, *, dag_id: str = None, **kwargs) -> None:
         """_summary_
 
         Parameters
@@ -33,7 +33,7 @@ class DagSensor(UpstreamSensor):
             dag_run_df = dag_run_df[dag_run_df.dag_run_state == state].reset_index(drop=True)
         dag_run_df.loc[:, "state"] = dag_run_df.dag_run_state
         return dag_run_df
-    
+
     @property
     def query_key_values(self) -> list[str]:
         return {"batch_id": self.batch_id, "dag_id": self.dag_id}

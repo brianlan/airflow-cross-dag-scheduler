@@ -13,13 +13,15 @@ class RestAPIWatcher(BaseWatcher):
         self,
         api_url: str,
         batch_id: str,
-        dag_id: str,
-        fixed_dag_run_conf: dict,
+        cookies: dict,
         upstream_sensors: List[UpstreamSensor],
-        scene_id_keys: List[str],
-        cookie_session_path: str,
+        *,
+        dag_id: str = None,
+        fixed_dag_run_conf: dict = None,
+        scene_id_keys: List[str] = None,
         max_running_dag_runs: int = 3,
         use_scene_id_keys_as_dag_run_id: bool = False,
+        watch_interval: int = 10,
     ) -> None:
         """__init__ of RestAPIWatcher
 
@@ -49,15 +51,16 @@ class RestAPIWatcher(BaseWatcher):
             the maximum number of running dag_runs that the watcher will keep, by default 3
         use_scene_id_keys_as_dag_run_id : bool, optional
             if True, will use scene_id_keys as dag_run_id when triggering dag, by default False
+        watch_interval : int
+            time interval (in seconds) between each watch, by default 10
         """
-        # calls the __init__ of BaseWatcher
-        super().__init__()
+        super().__init__(watch_interval=watch_interval)
 
         # check the input's validity
         assert len(scene_id_keys) > 0, "scene_id_keys should not be empty"
-        assert len(upstream_sensors) == len(
-            {u.dag_id for u in upstream_sensors}
-        ), "the same dag_id appears more than once in upstream definition."
+        # assert len(upstream_sensors) == len(
+        #     {u.dag_id for u in upstream_sensors}
+        # ), "the same dag_id appears more than once in upstream definition."
 
         self.batch_id = batch_id
         self.api_url = api_url
@@ -67,11 +70,10 @@ class RestAPIWatcher(BaseWatcher):
         self.upstream_sensors = upstream_sensors
         self.max_running_dag_runs = max_running_dag_runs
         self.use_scene_id_keys_as_dag_run_id = use_scene_id_keys_as_dag_run_id
-        self.cookies = {"session": self.read_cookie_session(cookie_session_path)}
+        self.cookies = cookies
 
-    def read_cookie_session(self, path):
-        with open(path, "r") as f:
-            return f.read().strip()
+    def __repr__(self) -> str:
+        return f"RestAPIWatcher({self.dag_id})"
 
     async def watch(self) -> WatchResult:
         ready_scenes = await self.get_all_upstream_ready_scenes()
@@ -82,7 +84,7 @@ class RestAPIWatcher(BaseWatcher):
         if len(ready_scenes) == 0 or trigger_quota <= 0:
             result.action = "watch"
             return result
-        
+
         # trigger the first scene that meets the requirement
         for ready_scene in ready_scenes:
             if ready_scene not in existing_scenes and trigger_quota > 0:
@@ -123,9 +125,7 @@ class RestAPIWatcher(BaseWatcher):
                 skeys = [skeys]
             num_success = sum([is_in_df(snr.query_key_values, subdf) for snr in self.upstream_sensors])
             if num_success == len(self.upstream_sensors):
-                ready_scenes.append(
-                    {"scene_id_keys": {k: v for k, v in zip(self.scene_id_keys, skeys)}}
-                )
+                ready_scenes.append({"scene_id_keys": {k: v for k, v in zip(self.scene_id_keys, skeys)}})
 
             # deps = []
             # for sensor in self.upstream_sensors:
@@ -141,7 +141,7 @@ class RestAPIWatcher(BaseWatcher):
             #     ), f"{sensor.dag_id} should have only one task_instance {sensor.task_id} that matches {skeys}"
             #     if len(dep_task_instance) == 1:
             #         deps.append(dep_task_instance.iloc[0].to_dict())
-            
+
             # if len(deps) == len(self.upstream_sensors):
             #     ready_scenes.append(
             #         {"scene_id_keys": {k: v for k, v in zip(self.scene_id_keys, skeys)}, "upstream": deps}
