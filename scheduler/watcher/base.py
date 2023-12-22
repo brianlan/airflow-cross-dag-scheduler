@@ -1,6 +1,8 @@
 from typing import Any
 import asyncio
 import importlib
+import traceback
+
 from loguru import logger
 
 from ..upstream_sensor.base import create_sensor
@@ -31,12 +33,15 @@ class BaseWatcher:
 
     async def run(self):
         while True:
+            _dag_id = getattr(self, 'dag_id', None)
             try:
                 result = await self.watch()
+                logger.info(f"[Watcher {_dag_id}] Watch result: {result}")
                 if result.action == "trigger":
                     await self.trigger(result.context)
             except Exception as e:
-                logger.error(f"Error when watching dag_id: {getattr(self, 'dag_id', None)}, err_msg: {e}")
+                logger.error(f"[Watcher {_dag_id}] err_msg: {e}")
+                traceback.print_exc()
 
             # sleep for some time
             await asyncio.sleep(self.watch_interval)

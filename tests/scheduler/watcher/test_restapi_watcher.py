@@ -112,7 +112,7 @@ async def test_get_all_ready_scene(mock_get_all_upstream_status, cookies):
     )
     result = await watcher.get_all_upstream_ready_scenes()
     assert len(result) == 1
-    assert result[0]["scene_id_keys"] == {"scene_id": "20231220_1101"}
+    assert result[0] == {"scene_id": "20231220_1101"}
     mock_get_all_upstream_status.assert_called_once()
 
 

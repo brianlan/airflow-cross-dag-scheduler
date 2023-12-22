@@ -77,6 +77,7 @@ class RestAPIWatcher(BaseWatcher):
         return f"RestAPIWatcher({self.dag_id})"
 
     async def watch(self) -> WatchResult:
+        logger.info(f"[Watcher {self.dag_id}] Start watching..")
         ready_scenes = await self.get_all_upstream_ready_scenes()
         existing_scenes = await self.get_existing_scenes()
         running_scenes = [s for s in existing_scenes if s["state"] == "running"]
@@ -88,23 +89,26 @@ class RestAPIWatcher(BaseWatcher):
 
         # trigger the first scene that meets the requirement
         for ready_scene in ready_scenes:
-            if ready_scene["scene_id_keys"] not in existing_scenes and trigger_quota > 0:
+            has_been_triggered = [e for e in existing_scenes if all(e[k] == ready_scene[k] for k in self.scene_id_keys)]
+            if len(has_been_triggered) == 0 and trigger_quota > 0:
                 result.action = "trigger"
                 result.context = ready_scene
                 return result
+        
+        return result
 
     async def trigger(self, context: dict) -> None:
         dag_conf = {
             "batch_id": self.batch_id,
-            **context["scene_id_keys"],
+            **context,
             **self.fixed_dag_run_conf,
         }
         dag_run_id = None
         if self.use_scene_id_keys_as_dag_run_id:
-            dag_run_id = "_".join([f"{k}:{v}" for k, v in context["scene_id_keys"].items()])
+            dag_run_id = "_".join([f"{k}:{v}" for k, v in context.items()])
         status, json_data = await trigger_dag(self.api_url, self.dag_id, self.cookies, dag_conf=dag_conf, dag_run_id=dag_run_id)
-        logger.info(f"Triggered DAG {self.dag_id}")
-        logger.info(f"Response from Airflow {json_data}")
+        logger.info(f"[Watcher {self.dag_id}] Triggered DAG.")
+        logger.info(f"[Watcher {self.dag_id}] Response from Airflow {json_data}")
 
     async def get_all_success_upstream(self) -> pd.DataFrame:
         status_df_list = [await sensor.sense(state="success") for sensor in self.upstream_sensors]
@@ -129,7 +133,7 @@ class RestAPIWatcher(BaseWatcher):
                 skeys = [skeys]
             num_success = sum([is_in_df(snr.query_key_values, subdf) for snr in self.upstream_sensors])
             if num_success == len(self.upstream_sensors):
-                ready_scenes.append({"scene_id_keys": {k: v for k, v in zip(self.scene_id_keys, skeys)}})
+                ready_scenes.append({k: v for k, v in zip(self.scene_id_keys, skeys)})
 
             # deps = []
             # for sensor in self.upstream_sensors:

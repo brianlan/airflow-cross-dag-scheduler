@@ -4,7 +4,7 @@ import signal
 import yaml
 import argparse
 
-from scheduler.watcher.base_watcher import create_watcher
+from scheduler.watcher.base import create_watcher
 from scheduler.helpers.base import read_cookie_session
 
 parser = argparse.ArgumentParser()
