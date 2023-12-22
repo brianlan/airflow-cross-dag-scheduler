@@ -123,6 +123,9 @@ class RestAPIWatcher(BaseWatcher):
         success_df_list = [await sensor.sense(state="success") for sensor in self.upstream_sensors]
         success_df = pd.concat(success_df_list).reset_index(drop=True)
 
+        if len(success_df) == 0:
+            return []
+
         for skeys, subdf in success_df.groupby(self.scene_id_keys):
             if isinstance(skeys, str):
                 skeys = [skeys]

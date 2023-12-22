@@ -34,6 +34,23 @@ async def test_get_all_ready_scene(cookies):
 
 
 @pytest.mark.asyncio
+async def test_get_all_ready_scene_when_upstream_empty(cookies):
+    watcher = RestAPIWatcher(
+        "http://127.0.0.1:8080",
+        "batch_id_does_not_exist",
+        cookies,
+        [
+            TaskSensor("http://127.0.0.1:8080", "batch_id_does_not_exist", cookies, dag_id="dag_for_unittest", task_id="fisheye.task_inside_2"), 
+            DagSensor("http://127.0.0.1:8080", "batch_id_does_not_exist", cookies, dag_id="dag_for_unittest_another")
+        ],
+        dag_id="downstream",
+        scene_id_keys=["scene_id"],
+    )
+    result = await watcher.get_all_upstream_ready_scenes()
+    assert result == []
+
+
+@pytest.mark.asyncio
 async def test_get_existing_scenes(cookies):
     watcher = RestAPIWatcher(
         "http://127.0.0.1:8080",
