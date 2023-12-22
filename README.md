@@ -13,8 +13,10 @@ SceneId is not exactly equals to {"scene_id": "20231102_1213"}, it could be mult
 
 ### Structures
 
+```
 batch_id:baidu
   └── dag_id:generate_base_data
          └── scene_id:20231101_1642 ─── dag_run_id:Manual_2023xxxxxx
                                                 ├── task_id:generate_image
                                                 └── task_id:generate_lidar
+```
