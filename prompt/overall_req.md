@@ -1,0 +1,1 @@
+I want you to write a runnable daemon application using Python to work with Airflow for me. In specific, I want to define the dependencies between different DAGs and monitor the states of each DagRuns. Once all the upstream DagRuns are success, the downstream DagRun will be triggered.

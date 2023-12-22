@@ -18,6 +18,9 @@ class TaskSensor(UpstreamSensor):
     async def sense(self, state: str = None) -> pd.DataFrame:
         dag_run_df = await get_dag_runs(self.api_url, self.batch_id, self.dag_id, self.cookies, to_dataframe=True)
 
+        if len(dag_run_df) == 0:
+            return pd.DataFrame([])
+
         task_instances = []
         for dag_run_id in dag_run_df["dag_run_id"]:
             task_instances.append(

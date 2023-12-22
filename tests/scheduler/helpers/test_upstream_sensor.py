@@ -6,6 +6,7 @@ pd.set_option("display.max_columns", None)
 from scheduler.upstream_sensor.dag_sensor import DagSensor
 from scheduler.upstream_sensor.task_sensor import TaskSensor
 from scheduler.upstream_sensor.static_scene_list_sensor import StaticSceneListSensor
+from scheduler.helpers.aiohttp_requests import Non200Response
 
 
 @pytest.fixture
@@ -50,6 +51,20 @@ async def test_dag_sensor_with_state_success(cookies):
             }
         ),
     )
+
+
+@pytest.mark.asyncio
+async def test_dag_sensor_when_dag_not_exist(cookies):
+    sensor = DagSensor("http://127.0.0.1:8080", None, cookies, dag_id="dag_id_does_not_exist")
+    status_df = await sensor.sense(state="success")
+    pd.testing.assert_frame_equal( status_df, pd.DataFrame([]), )
+
+
+@pytest.mark.asyncio
+async def test_dag_sensor_when_batch_id_not_match(cookies):
+    sensor = DagSensor("http://127.0.0.1:8080", "batch_id_not_exist", cookies, dag_id="downstream")
+    status_df = await sensor.sense(state="success")
+    pd.testing.assert_frame_equal( status_df, pd.DataFrame([]), )
 
 
 @pytest.mark.asyncio
@@ -98,6 +113,27 @@ async def test_task_sensor_with_state_failed(cookies):
         ),
     )
 
+
+@pytest.mark.asyncio
+async def test_task_sensor_when_no_dag_run(cookies):
+    sensor = TaskSensor("http://127.0.0.1:8080", None, cookies, dag_id="dag_id_does_not_exist", task_id="random_fail")
+    status_df = await sensor.sense(state="success")
+    pd.testing.assert_frame_equal( status_df, pd.DataFrame([]), )
+
+
+@pytest.mark.asyncio
+async def test_task_sensor_when_batch_id_not_match(cookies):
+    sensor = TaskSensor("http://127.0.0.1:8080", "batch_id_not_exist", cookies, dag_id="downstream", task_id="random_fail")
+    status_df = await sensor.sense(state="success")
+    pd.testing.assert_frame_equal( status_df, pd.DataFrame([]), )
+
+
+@pytest.mark.asyncio
+async def test_task_sensor_when_no_task(cookies):
+    sensor = TaskSensor("http://127.0.0.1:8080", "not_tracked", cookies, dag_id="downstream", task_id="task_id_not_exist")
+    with pytest.raises(Non200Response):
+        _ = await sensor.sense(state="success")
+        
 
 @pytest.mark.asyncio
 async def test_static_scene_list_sensor():
