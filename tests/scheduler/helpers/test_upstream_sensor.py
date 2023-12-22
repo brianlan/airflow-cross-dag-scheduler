@@ -1,5 +1,6 @@
 import pytest
 import pandas as pd
+import numpy as np
 
 pd.set_option("display.max_columns", None)
 
@@ -151,3 +152,55 @@ async def test_static_scene_list_sensor():
             }
         ),
     )
+
+
+@pytest.mark.asyncio
+async def test_get_mixed_sensor_results(cookies):
+    upstream_sensors = [
+        TaskSensor("http://127.0.0.1:8080", None, cookies, dag_id="dag_for_unittest", task_id="fisheye.task_inside_2"), 
+        DagSensor("http://127.0.0.1:8080", None, cookies, dag_id="dag_for_unittest_another")
+    ]
+    status_df_list = [await sensor.sense(state="success") for sensor in upstream_sensors]
+    status_df = pd.concat(status_df_list).reset_index(drop=True)
+
+    pd.testing.assert_frame_equal(
+        status_df[["dag_id", "dag_run_id", "dag_run_state", "scene_id", "task_id", "task_instance_state", "state"]],
+        pd.concat(
+            [
+                pd.DataFrame(
+                    {
+                        "dag_id": ["dag_for_unittest"] * 2,
+                        "dag_run_id": ["manual__2023-12-20T03:38:06+00:00"]  + ["fixed_a001"] ,
+                        "dag_run_state": ["success"] * 2,
+                        "scene_id": ["20231220_1101"]  + ["underground_1220"] ,
+                        "task_id": [ "fisheye.task_inside_2"] * 2,
+                        "task_instance_state": ["success"] * 2,
+                        "state": ["success"] * 2,
+                    }
+                ),
+                pd.DataFrame(
+                    {
+                        "dag_id": ["dag_for_unittest_another"],
+                        "dag_run_id": ["fixed_b001"],
+                        "dag_run_state": ["success"],
+                        "scene_id": ["20231220_1101"],
+                        "task_id": [np.nan],
+                        "task_instance_state": [np.nan],
+                        "state": ["success"],
+                    }
+                ),
+            ]
+        ).reset_index(drop=True),
+    )
+
+
+@pytest.mark.asyncio
+async def test_get_all_success_upstream_when_upstream_empty(cookies):
+    upstream_sensors = [
+        TaskSensor("http://127.0.0.1:8080", "batch_id_not_exist", cookies, dag_id="dag_for_unittest", task_id="fisheye.task_inside_2"), 
+        DagSensor("http://127.0.0.1:8080", None, cookies, dag_id="dag_id_not_exist")
+    ]
+    status_df_list = [await sensor.sense(state="success") for sensor in upstream_sensors]
+    status_df = pd.concat(status_df_list).reset_index(drop=True)
+
+    assert len(status_df) == 0

@@ -110,14 +110,6 @@ class RestAPIWatcher(BaseWatcher):
         logger.info(f"[Watcher {self.dag_id}] Triggered DAG.")
         logger.info(f"[Watcher {self.dag_id}] Response from Airflow {json_data}")
 
-    async def get_all_success_upstream(self) -> pd.DataFrame:
-        status_df_list = [await sensor.sense(state="success") for sensor in self.upstream_sensors]
-        for key in self.scene_id_keys:
-            for status_df in status_df_list:
-                if key not in status_df.columns:
-                    status_df.loc[:, key] = status_df.conf.map(lambda x: x.get(key))
-        return pd.concat(status_df_list).reset_index(drop=True)
-
     async def get_all_upstream_ready_scenes(self) -> List[dict]:
         """Get all the ready scene's
 
@@ -127,33 +119,16 @@ class RestAPIWatcher(BaseWatcher):
             list of upstream ready conf
         """
         ready_scenes = []
-        success_df = await self.get_all_success_upstream()
+
+        success_df_list = [await sensor.sense(state="success") for sensor in self.upstream_sensors]
+        success_df = pd.concat(success_df_list).reset_index(drop=True)
+
         for skeys, subdf in success_df.groupby(self.scene_id_keys):
             if isinstance(skeys, str):
                 skeys = [skeys]
             num_success = sum([is_in_df(snr.query_key_values, subdf) for snr in self.upstream_sensors])
             if num_success == len(self.upstream_sensors):
                 ready_scenes.append({k: v for k, v in zip(self.scene_id_keys, skeys)})
-
-            # deps = []
-            # for sensor in self.upstream_sensors:
-            #     if isinstance(sensor, DagSensor):
-            #         dep_dag_run = subdf[subdf.dag_id == sensor.dag_id]
-            #         assert len(dep_dag_run) <= 1, f"{sensor.dag_id} should have only one dag_run that matches {skeys}"
-            #         if len(dep_dag_run) == 1:
-            #             deps.append(dep_dag_run.iloc[0].to_dict())
-            #         continue
-            #     dep_task_instance = subdf[(subdf.dag_id == sensor.dag_id) & (subdf.task_id == sensor.task_id)]
-            #     assert (
-            #         len(dep_task_instance) <= 1
-            #     ), f"{sensor.dag_id} should have only one task_instance {sensor.task_id} that matches {skeys}"
-            #     if len(dep_task_instance) == 1:
-            #         deps.append(dep_task_instance.iloc[0].to_dict())
-
-            # if len(deps) == len(self.upstream_sensors):
-            #     ready_scenes.append(
-            #         {"scene_id_keys": {k: v for k, v in zip(self.scene_id_keys, skeys)}, "upstream": deps}
-            #     )
 
         return ready_scenes
 

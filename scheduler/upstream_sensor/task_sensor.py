@@ -16,7 +16,7 @@ class TaskSensor(UpstreamSensor):
         self.cookies = cookies
 
     async def sense(self, state: str = None) -> pd.DataFrame:
-        dag_run_df = await get_dag_runs(self.api_url, self.batch_id, self.dag_id, self.cookies, to_dataframe=True)
+        dag_run_df = await get_dag_runs(self.api_url, self.batch_id, self.dag_id, self.cookies, to_dataframe=True, flatten_conf=True)
 
         if len(dag_run_df) == 0:
             return pd.DataFrame([])
