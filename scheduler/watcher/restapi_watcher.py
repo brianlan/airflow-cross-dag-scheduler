@@ -6,7 +6,7 @@ from loguru import logger
 from ..helpers.base import is_in_df
 from ..helpers.airflow_api import get_dag_runs, trigger_dag
 from ..upstream_sensor.base import UpstreamSensor
-from .base_watcher import BaseWatcher, WatchResult
+from .base import BaseWatcher, WatchResult
 
 
 class RestAPIWatcher(BaseWatcher):
