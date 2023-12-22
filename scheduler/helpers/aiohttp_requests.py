@@ -1,5 +1,6 @@
 import aiohttp
 import asyncio
+import json
 
 class Non200Response(Exception):
     pass
@@ -34,8 +35,13 @@ async def get(url, cookies=None):
 
 @async_retry(retries=3, delay=1)
 async def post(url, data, cookies=None):
-    async with aiohttp.ClientSession(cookies=cookies) as session:
-        async with session.post(url, data=data) as response:
+    headers={
+        'Content-type':'application/json', 
+        'Accept':'application/json'
+    }
+    json_data = json.dumps(data)
+    async with aiohttp.ClientSession(headers=headers, cookies=cookies) as session:
+        async with session.post(url, data=json_data) as response:
             status = response.status
             json_data = await response.json()
             return status, json_data

@@ -11,9 +11,12 @@ class WatchResult:
         self.action = "unset"
         self.context = {}
 
-    def __setattr__(self, __name: str, __value: Any) -> None:
-        if __name == "action" and __value not in ["trigger", "unset", "error", "watch"]:
-            raise ValueError("Invalid action")
+    # def __setattr__(self, __name: str, __value: Any) -> None:
+    #     if __name == "action" and __value not in ["trigger", "unset", "error", "watch"]:
+    #         raise ValueError("Invalid action")
+    
+    def __repr__(self) -> str:
+        return f"WatchResult(action={self.action}, context={self.context})"
 
 
 class BaseWatcher:

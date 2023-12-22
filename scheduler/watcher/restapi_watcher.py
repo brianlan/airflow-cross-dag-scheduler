@@ -1,6 +1,7 @@
 from typing import List
 
 import pandas as pd
+from loguru import logger
 
 from ..helpers.base import is_in_df
 from ..helpers.airflow_api import get_dag_runs, trigger_dag
@@ -87,7 +88,7 @@ class RestAPIWatcher(BaseWatcher):
 
         # trigger the first scene that meets the requirement
         for ready_scene in ready_scenes:
-            if ready_scene not in existing_scenes and trigger_quota > 0:
+            if ready_scene["scene_id_keys"] not in existing_scenes and trigger_quota > 0:
                 result.action = "trigger"
                 result.context = ready_scene
                 return result
@@ -95,12 +96,15 @@ class RestAPIWatcher(BaseWatcher):
     async def trigger(self, context: dict) -> None:
         dag_conf = {
             "batch_id": self.batch_id,
-            **context["scene_id_keys"].items(),
+            **context["scene_id_keys"],
+            **self.fixed_dag_run_conf,
         }
         dag_run_id = None
         if self.use_scene_id_keys_as_dag_run_id:
             dag_run_id = "_".join([f"{k}:{v}" for k, v in context["scene_id_keys"].items()])
-        status, json_data = await trigger_dag(self.dag_id, dag_conf=dag_conf, dag_run_id=dag_run_id)
+        status, json_data = await trigger_dag(self.api_url, self.dag_id, self.cookies, dag_conf=dag_conf, dag_run_id=dag_run_id)
+        logger.info(f"Triggered DAG {self.dag_id}")
+        logger.info(f"Response from Airflow {json_data}")
 
     async def get_all_success_upstream(self) -> pd.DataFrame:
         status_df_list = [await sensor.sense(state="success") for sensor in self.upstream_sensors]
@@ -158,6 +162,11 @@ class RestAPIWatcher(BaseWatcher):
             list of existing scenes, each scene is a dict of {scene_id_key[0]: scene_id_value[0], scene_id_key[1]: scene_id_value[1], ...}
         """
         dag_run_df = await get_dag_runs(self.api_url, self.batch_id, self.dag_id, self.cookies, to_dataframe=True)
+
+        if len(dag_run_df) == 0:
+            return []
+
+        # extract scene_id_keys, such as 'scene_id' out of the `conf` column
         for key in self.scene_id_keys:
             if key not in dag_run_df.columns:
                 dag_run_df.loc[:, key] = dag_run_df.conf.map(lambda x: x.get(key))
