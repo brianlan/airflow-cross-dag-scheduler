@@ -126,7 +126,8 @@ class RestAPIWatcher(BaseWatcher):
         if len(success_df) == 0:
             return []
 
-        for skeys, subdf in success_df.groupby(self.scene_id_keys):
+        _scene_id_keys = self.scene_id_keys[0] if len(self.scene_id_keys) == 1 else self.scene_id_keys # to prevent pandas warning
+        for skeys, subdf in success_df.groupby(_scene_id_keys):
             if isinstance(skeys, str):
                 skeys = [skeys]
             num_success = sum([is_in_df(snr.query_key_values, subdf) for snr in self.upstream_sensors])
