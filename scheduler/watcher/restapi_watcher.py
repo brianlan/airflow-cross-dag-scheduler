@@ -1,4 +1,5 @@
 from typing import List
+import time
 
 import pandas as pd
 from loguru import logger
@@ -21,7 +22,7 @@ class RestAPIWatcher(BaseWatcher):
         fixed_dag_run_conf: dict = None,
         scene_id_keys: List[str] = None,
         max_running_dag_runs: int = 3,
-        use_scene_id_keys_as_dag_run_id: bool = False,
+        triggered_dag_run_id_style: str = "timestamp",
         watch_interval: int = 10,
     ) -> None:
         """__init__ of RestAPIWatcher
@@ -50,8 +51,8 @@ class RestAPIWatcher(BaseWatcher):
             the path to the cookie_session file that required by Airflow REST API for authentication
         max_running_dag_runs : int, optional
             the maximum number of running dag_runs that the watcher will keep, by default 3
-        use_scene_id_keys_as_dag_run_id : bool, optional
-            if True, will use scene_id_keys as dag_run_id when triggering dag, by default False
+        triggered_dag_run_id_style : str, optional
+            Valid choices: ["timestamp", "scene_id_keys", "scene_id_keys_with_time"], by default "scene_id_keys_with_time"
         watch_interval : int
             time interval (in seconds) between each watch, by default 10
         """
@@ -59,6 +60,7 @@ class RestAPIWatcher(BaseWatcher):
 
         # check the input's validity
         assert len(scene_id_keys) > 0, "scene_id_keys should not be empty"
+        assert triggered_dag_run_id_style in ["timestamp", "scene_id_keys", "scene_id_keys_with_time"], "invalid triggered_dag_run_id_style"
         # assert len(upstream_sensors) == len(
         #     {u.dag_id for u in upstream_sensors}
         # ), "the same dag_id appears more than once in upstream definition."
@@ -70,7 +72,7 @@ class RestAPIWatcher(BaseWatcher):
         self.fixed_dag_run_conf = fixed_dag_run_conf
         self.upstream_sensors = upstream_sensors
         self.max_running_dag_runs = max_running_dag_runs
-        self.use_scene_id_keys_as_dag_run_id = use_scene_id_keys_as_dag_run_id
+        self.triggered_dag_run_id_style = triggered_dag_run_id_style
         self.cookies = cookies
 
     def __repr__(self) -> str:
@@ -103,9 +105,12 @@ class RestAPIWatcher(BaseWatcher):
             **context,
             **self.fixed_dag_run_conf,
         }
-        dag_run_id = None
-        if self.use_scene_id_keys_as_dag_run_id:
-            dag_run_id = "_".join([f"{k}:{v}" for k, v in context.items()])
+        if self.triggered_dag_run_id_style == "timestamp":
+            dag_run_id = None
+        elif self.triggered_dag_run_id_style == "scene_id_keys":
+            dag_run_id = "__".join([f"{k}:{v}" for k, v in context.items()])
+        elif self.triggered_dag_run_id_style == "scene_id_keys_with_time":
+            dag_run_id = "__".join([f"{k}:{v}" for k, v in context.items()]) + f"__{time.time()}"
         status, json_data = await trigger_dag(self.api_url, self.dag_id, self.cookies, dag_conf=dag_conf, dag_run_id=dag_run_id)
         logger.info(f"[Watcher {self.dag_id}] Triggered DAG.")
         logger.info(f"[Watcher {self.dag_id}] Response from Airflow {json_data}")
