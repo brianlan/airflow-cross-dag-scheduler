@@ -4,7 +4,7 @@ import numpy as np
 
 pd.set_option("display.max_columns", None)
 
-from scheduler.watcher.restapi_watcher import RestAPIWatcher
+from scheduler.watcher.expandable_restapi_watcher import ExpandableRestAPIWatcher
 from scheduler.upstream_sensor.dag_sensor import DagSensor
 from scheduler.upstream_sensor.task_sensor import TaskSensor
 
@@ -16,7 +16,7 @@ def cookies():
 
 @pytest.mark.asyncio
 async def test_get_all_ready_scene(cookies):
-    watcher = RestAPIWatcher(
+    watcher = ExpandableRestAPIWatcher(
         "http://127.0.0.1:8080",
         "baidu_integration_test",
         cookies,
@@ -34,7 +34,7 @@ async def test_get_all_ready_scene(cookies):
 
 @pytest.mark.asyncio
 async def test_get_all_ready_scene_when_upstream_empty(cookies):
-    watcher = RestAPIWatcher(
+    watcher = ExpandableRestAPIWatcher(
         "http://127.0.0.1:8080",
         "batch_id_does_not_exist",
         cookies,
@@ -51,7 +51,7 @@ async def test_get_all_ready_scene_when_upstream_empty(cookies):
 
 @pytest.mark.asyncio
 async def test_get_existing_scenes(cookies):
-    watcher = RestAPIWatcher(
+    watcher = ExpandableRestAPIWatcher(
         "http://127.0.0.1:8080",
         "baidu_integration_test",
         cookies,
@@ -71,7 +71,7 @@ async def test_get_existing_scenes(cookies):
 
 @pytest.mark.asyncio
 async def test_get_existing_scenes_multi_scene_id_keys(cookies):
-    watcher = RestAPIWatcher(
+    watcher = ExpandableRestAPIWatcher(
         "http://127.0.0.1:8080",
         "baidu_integration_test",
         cookies,

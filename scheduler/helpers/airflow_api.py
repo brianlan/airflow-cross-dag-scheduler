@@ -6,6 +6,7 @@ from . import aiohttp_requests as ar
 
 pd.set_option("display.max_columns", None)
 
+
 async def get_dag_runs(
     api_url: str,
     batch_id: str,
@@ -88,7 +89,7 @@ async def get_dag_runs(
 async def get_task_instance(
     api_url: str, dag_id: str, dag_run_id: str, task_id: str, cookies: dict, to_dataframe: bool = False
 ) -> Union[List[dict], pd.DataFrame]:
-    """Get all the task instance status of a DagRun using Airflow RestAPI:
+    """Get specific task instance status of a DagRun using Airflow RestAPI:
     http://{api_url}/api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}
 
     Parameters
@@ -143,3 +144,45 @@ async def trigger_dag(api_url: str, dag_id: str, cookies: dict, dag_conf: dict =
     if dag_run_id:
         payload["dag_run_id"] = dag_run_id
     return await ar.post(url, payload, cookies=cookies)
+
+
+async def get_xcom(
+    api_url: str,
+    dag_id: str,
+    dag_run_id: str,
+    xcom_task_id: str,
+    cookies: dict,
+    to_dataframe: bool = False,
+    xcom_key: str = "return_value",
+) -> Union[List[dict], pd.DataFrame]:
+    """Get xcom value of a specific xcom_key using Airflow RestAPI:
+    http://{api_url}/api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}
+
+    Parameters
+    ----------
+    api_url : str
+        api endpoint url
+    dag_id : str
+        dag id
+    dag_run_id : str
+        dagRun id
+    xcom_task_id : str
+        task id that produce (push) the xcom
+    xcom_key: str
+        the xcom key
+    cookies: dict
+        cookies for authentication
+    to_dataframe : bool, optional
+        if True, will convert list of dagruns (dict) into pandas.DataFrame, by default False.
+
+    Returns
+    -------
+    Union[List[dict], pd.DataFrame]
+        xcom value dict of dataframe
+    """
+    url = f"{api_url}/api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{xcom_task_id}/xcomEntries/{xcom_key}"
+    status, data = await ar.get(url, cookies=cookies)
+    data = [data]
+    if to_dataframe:
+        data = pd.DataFrame.from_records(data)
+    return data

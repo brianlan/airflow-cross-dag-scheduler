@@ -4,13 +4,13 @@ import time
 import pandas as pd
 from loguru import logger
 
-from ..helpers.base import is_in_df
-from ..helpers.airflow_api import get_dag_runs, trigger_dag
-from ..upstream_sensor.base import UpstreamSensor
+from ..helpers.base import is_in_df, extract_values
+from ..helpers.airflow_api import get_dag_runs, trigger_dag, get_xcom
+from ..upstream_sensor.base import UpstreamSensor, XComQuery
 from .base import BaseWatcher, WatchResult
 
 
-class RestAPIWatcher(BaseWatcher):
+class ExpandableRestAPIWatcher(BaseWatcher):
     def __init__(
         self,
         api_url: str,
@@ -21,6 +21,7 @@ class RestAPIWatcher(BaseWatcher):
         dag_id: str = None,
         fixed_dag_run_conf: dict = None,
         scene_id_keys: List[str] = None,
+        expand_by: XComQuery = None,
         max_running_dag_runs: int = 3,
         triggered_dag_run_id_style: str = "timestamp",
         watch_interval: int = 10,
@@ -47,6 +48,15 @@ class RestAPIWatcher(BaseWatcher):
             If task_id is not provided, this upstream is considered as success when the dag is success.
         scene_id_keys : List[str]
             The keys that determines a scene.
+        expand_by: XComQuery
+            description to how to get the xcom_values to expand the dag_run.
+            For example:
+                expand_by = {
+                    "dag_id": "dag_split_map_generator",
+                    "task_id": "generate_split_map",
+                    "xcom_key": "return_value",
+                    "out_col_name": "split_id"
+                }
         cookie_session_path : str
             the path to the cookie_session file that required by Airflow REST API for authentication
         max_running_dag_runs : int, optional
@@ -61,9 +71,6 @@ class RestAPIWatcher(BaseWatcher):
         # check the input's validity
         assert len(scene_id_keys) > 0, "scene_id_keys should not be empty"
         assert triggered_dag_run_id_style in ["timestamp", "scene_id_keys", "scene_id_keys_with_time"], "invalid triggered_dag_run_id_style"
-        # assert len(upstream_sensors) == len(
-        #     {u.dag_id for u in upstream_sensors}
-        # ), "the same dag_id appears more than once in upstream definition."
 
         self.batch_id = batch_id
         self.api_url = api_url
@@ -74,9 +81,36 @@ class RestAPIWatcher(BaseWatcher):
         self.max_running_dag_runs = max_running_dag_runs
         self.triggered_dag_run_id_style = triggered_dag_run_id_style
         self.cookies = cookies
+        self.expand_by = expand_by
 
     def __repr__(self) -> str:
         return f"RestAPIWatcher({self.dag_id})"
+
+    async def expand(self, df: pd.DataFrame) -> pd.DataFrame:
+        """The expansion will based on the same batch_id and scene_id_keys, expand the dag_run by the xcom values"""
+        expand_dag_run_df = await get_dag_runs(self.api_url, self.batch_id, self.expand_by.dag_id, self.cookies, to_dataframe=True, flatten_conf=True)
+
+        if len(expand_dag_run_df) == 0:
+            return pd.DataFrame([])
+
+        for idx, row in expand_dag_run_df.iterrows():
+            xcom = await get_xcom(
+                self.api_url,
+                row.dag_id,
+                row.dag_run_id,
+                self.expand_by.task_id,
+                self.cookies,
+                xcom_key=self.expand_by.xcom_key,
+                to_dataframe=False,
+            )
+            xcom_values = extract_values(xcom["value"])
+            expand_dag_run_df.loc[idx, self.expand_by.out_col_name] = xcom_values
+        
+        expand_dag_run_df.explode(self.expand_by.out_col_name, ignore_index=True, inplace=True)
+        expand_dag_run_df.drop(expand_dag_run_df[self.expand_by.out_col_name.isnull()].index, inplace=True)
+
+        merged = pd.merge(df, expand_dag_run_df, how="inner", on=self.scene_id_keys).reset_index(drop=True)
+        return merged
 
     async def watch(self) -> WatchResult:
         logger.info(f"[Watcher {self.dag_id}] Start watching..")

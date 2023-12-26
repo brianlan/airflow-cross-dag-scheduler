@@ -1,12 +1,13 @@
 import pytest
 import pandas as pd
 
-from scheduler.helpers.airflow_api import get_dag_runs, get_task_instance
+from scheduler.helpers.airflow_api import get_dag_runs, get_task_instance, get_xcom
 
 
 @pytest.fixture
 def cookies():
     return {"session": "b9c867dc-5319-4ad4-97e0-6474260b10de.x5LW6WQ0sSpk_vARkCsQzQfpXDE"}
+
 
 @pytest.mark.asyncio
 async def test_get_dag_runs(cookies):
@@ -17,60 +18,74 @@ async def test_get_dag_runs(cookies):
 
 @pytest.mark.asyncio
 async def test_get_dag_runs_with_batch_id(cookies):
-    dag_runs = await get_dag_runs("http://127.0.0.1:8080", "baidu_integration_test", "dag_for_unittest", cookies, to_dataframe=False)
+    dag_runs = await get_dag_runs(
+        "http://127.0.0.1:8080", "baidu_integration_test", "dag_for_unittest", cookies, to_dataframe=False
+    )
     assert len(dag_runs) == 2
     assert {d["dag_run_id"] for d in dag_runs} == {"manual__2023-12-21T02:53:04+00:00", "fixed_a002"}
 
 
 @pytest.mark.asyncio
 async def test_get_dag_runs_with_no_dagrun(cookies):
-    dag_runs = await get_dag_runs("http://127.0.0.1:8080", "baidu_integration_test", "dag_has_no_dagrun", cookies, to_dataframe=False)
+    dag_runs = await get_dag_runs(
+        "http://127.0.0.1:8080", "baidu_integration_test", "dag_has_no_dagrun", cookies, to_dataframe=False
+    )
     assert dag_runs == []
-    dag_runs = await get_dag_runs("http://127.0.0.1:8080", "baidu_integration_test", "dag_has_no_dagrun", cookies, to_dataframe=True)
+    dag_runs = await get_dag_runs(
+        "http://127.0.0.1:8080", "baidu_integration_test", "dag_has_no_dagrun", cookies, to_dataframe=True
+    )
     assert isinstance(dag_runs, pd.DataFrame)
     assert len(dag_runs) == 0
 
 
 @pytest.mark.asyncio
 async def test_get_dag_runs_with_no_dag_id(cookies):
-    dag_runs = await get_dag_runs("http://127.0.0.1:8080", "baidu_integration_test", "dag_id_does_not_exist", cookies, to_dataframe=False)
+    dag_runs = await get_dag_runs(
+        "http://127.0.0.1:8080", "baidu_integration_test", "dag_id_does_not_exist", cookies, to_dataframe=False
+    )
     assert dag_runs == []
-    dag_runs = await get_dag_runs("http://127.0.0.1:8080", "baidu_integration_test", "dag_id_does_not_exist", cookies, to_dataframe=True)
+    dag_runs = await get_dag_runs(
+        "http://127.0.0.1:8080", "baidu_integration_test", "dag_id_does_not_exist", cookies, to_dataframe=True
+    )
     assert isinstance(dag_runs, pd.DataFrame)
     assert len(dag_runs) == 0
 
 
 @pytest.mark.asyncio
 async def test_get_task_instance(cookies):
-    ti = await get_task_instance("http://127.0.0.1:8080", "dag_for_unittest", "fixed_a001", "final_task", cookies, to_dataframe=False)
-    assert ti == [{
-        "dag_id": "dag_for_unittest",
-        "dag_run_id": "fixed_a001",
-        "duration": 0.124446,
-        "end_date": "2023-12-20T10:14:27.561202+00:00",
-        "execution_date": "2023-12-20T10:13:35+00:00",
-        "executor_config": "{}",
-        "hostname": "a5a856482abf",
-        "map_index": -1,
-        "max_tries": 3,
-        "note": None,
-        "operator": "_PythonDecoratedOperator",
-        "pid": 49159,
-        "pool": "default_pool",
-        "pool_slots": 1,
-        "priority_weight": 1,
-        "queue": "default",
-        "queued_when": "2023-12-20T10:14:26.996557+00:00",
-        "rendered_fields": {"op_args": [], "op_kwargs": {}, "templates_dict": None},
-        "sla_miss": None,
-        "start_date": "2023-12-20T10:14:27.436756+00:00",
-        "state": "success",
-        "task_id": "final_task",
-        "trigger": None,
-        "triggerer_job": None,
-        "try_number": 1,
-        "unixname": "default",
-    }]
+    ti = await get_task_instance(
+        "http://127.0.0.1:8080", "dag_for_unittest", "fixed_a001", "final_task", cookies, to_dataframe=False
+    )
+    assert ti == [
+        {
+            "dag_id": "dag_for_unittest",
+            "dag_run_id": "fixed_a001",
+            "duration": 0.124446,
+            "end_date": "2023-12-20T10:14:27.561202+00:00",
+            "execution_date": "2023-12-20T10:13:35+00:00",
+            "executor_config": "{}",
+            "hostname": "a5a856482abf",
+            "map_index": -1,
+            "max_tries": 3,
+            "note": None,
+            "operator": "_PythonDecoratedOperator",
+            "pid": 49159,
+            "pool": "default_pool",
+            "pool_slots": 1,
+            "priority_weight": 1,
+            "queue": "default",
+            "queued_when": "2023-12-20T10:14:26.996557+00:00",
+            "rendered_fields": {"op_args": [], "op_kwargs": {}, "templates_dict": None},
+            "sla_miss": None,
+            "start_date": "2023-12-20T10:14:27.436756+00:00",
+            "state": "success",
+            "task_id": "final_task",
+            "trigger": None,
+            "triggerer_job": None,
+            "try_number": 1,
+            "unixname": "default",
+        }
+    ]
 
 
 # @pytest.mark.asyncio
@@ -250,17 +265,89 @@ async def test_get_task_instance(cookies):
 
 @pytest.mark.asyncio
 async def test_get_dag_runs_with_flatten_conf(cookies):
-    dag_runs_df = await get_dag_runs("http://127.0.0.1:8080", "baidu_integration_test", "dag_for_unittest", cookies, to_dataframe=True, flatten_conf=True)
+    dag_runs_df = await get_dag_runs(
+        "http://127.0.0.1:8080",
+        "baidu_integration_test",
+        "dag_for_unittest",
+        cookies,
+        to_dataframe=True,
+        flatten_conf=True,
+    )
     pd.testing.assert_frame_equal(
         dag_runs_df[["dag_id", "dag_run_id", "state", "dag_run_state", "batch_id", "scene_id"]],
         pd.DataFrame(
             {
                 "dag_id": ["dag_for_unittest"] * 2,
-                "dag_run_id": ["fixed_a002", "manual__2023-12-21T02:53:04+00:00"] ,
+                "dag_run_id": ["fixed_a002", "manual__2023-12-21T02:53:04+00:00"],
                 "state": ["success"] * 2,
                 "dag_run_state": ["success"] * 2,
-                "batch_id": ["baidu_integration_test"] * 2 ,
-                "scene_id": ["underground_1220", "20231220_1101"] ,
+                "batch_id": ["baidu_integration_test"] * 2,
+                "scene_id": ["underground_1220", "20231220_1101"],
             }
-        )
+        ),
     )
+
+
+@pytest.mark.asyncio
+async def test_get_xcom(cookies):
+    result = await get_xcom(
+        "http://127.0.0.1:8080",
+        "dag_split_map_generator",
+        "manual__2023-12-25T10:27:12+00:00",
+        "generate_split_map",
+        cookies,
+        to_dataframe=False,
+    )
+    assert result[0]["value"] == "[{'S3_SPLIT_MAP_ID': 0}, {'S3_SPLIT_MAP_ID': 1}, {'S3_SPLIT_MAP_ID': 2}, {'S3_SPLIT_MAP_ID': 3}, {'S3_SPLIT_MAP_ID': 4}]"
+    result_df = await get_xcom(
+        "http://127.0.0.1:8080",
+        "dag_split_map_generator",
+        "manual__2023-12-25T10:27:12+00:00",
+        "generate_split_map",
+        cookies,
+        to_dataframe=True,
+    )
+    pd.testing.assert_frame_equal(
+        result_df[["dag_id", "key", "task_id", "value"]],
+        pd.DataFrame(
+            {
+                "dag_id": ["dag_split_map_generator"],
+                "key": ["return_value"],
+                "task_id": ["generate_split_map"],
+                "value": ["[{'S3_SPLIT_MAP_ID': 0}, {'S3_SPLIT_MAP_ID': 1}, {'S3_SPLIT_MAP_ID': 2}, {'S3_SPLIT_MAP_ID': 3}, {'S3_SPLIT_MAP_ID': 4}]"]
+            }
+        ),
+    )
+
+
+@pytest.mark.asyncio
+async def test_get_xcom_specify_xcom_key(cookies):
+    assert (await get_xcom(
+        "http://127.0.0.1:8080",
+        "dag_split_map_generator",
+        "manual__2023-12-25T10:27:12+00:00",
+        "generate_xcom_key_value_pairs",
+        cookies,
+        to_dataframe=False,
+        xcom_key="return_value"
+    ))[0]["value"] == "{'p': 'past', 'f': 'future'}"
+
+    assert (await get_xcom(
+        "http://127.0.0.1:8080",
+        "dag_split_map_generator",
+        "manual__2023-12-25T10:27:12+00:00",
+        "generate_xcom_key_value_pairs",
+        cookies,
+        to_dataframe=False,
+        xcom_key="p"
+    ))[0]["value"] == "past"
+
+    assert (await get_xcom(
+        "http://127.0.0.1:8080",
+        "dag_split_map_generator",
+        "manual__2023-12-25T10:27:12+00:00",
+        "generate_xcom_key_value_pairs",
+        cookies,
+        to_dataframe=False,
+        xcom_key="f"
+    ))[0]["value"] == "future"
