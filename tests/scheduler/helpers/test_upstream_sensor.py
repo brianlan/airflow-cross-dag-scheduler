@@ -242,3 +242,11 @@ async def test_xcom_query(cookies):
     })
     gt.loc[:, "split_id"] = gt.split_id.astype("object")
     pd.testing.assert_frame_equal( df, gt )
+
+
+@pytest.mark.asyncio
+async def test_xcom_query_task_instance_not_exist(cookies):
+    xquery = XComQuery("dag_split_map_generator", "task_id_not_exist", "return_value", "split_id")
+    df = await xquery.query("http://127.0.0.1:8080", "baidu_integration_test", cookies)
+    assert isinstance(df, pd.DataFrame)
+    assert len(df) == 0

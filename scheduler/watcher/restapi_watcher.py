@@ -24,6 +24,7 @@ class RestAPIWatcher(BaseWatcher):
         max_running_dag_runs: int = 3,
         triggered_dag_run_id_style: str = "timestamp",
         watch_interval: int = 10,
+        **kwargs,
     ) -> None:
         """__init__ of RestAPIWatcher
 

@@ -7,7 +7,7 @@ watchers:
       data_root: mv/data/scene_root
     max_running_dag_runs: 3
     scene_id_keys: ["scene_id"]
-    triggered_dag_run_id_style: scene_id_keys_with_time
+    triggered_dag_run_id_style: scene_id_keys
     upstream: 
       - class: scheduler.upstream_sensor.static_scene_list_sensor.StaticSceneListSensor
         args:
@@ -26,7 +26,7 @@ watchers:
       output_dir: seg
     max_running_dag_runs: 3
     scene_id_keys: ["scene_id"]
-    triggered_dag_run_id_style: scene_id_keys_with_time
+    triggered_dag_run_id_style: scene_id_keys
     upstream:
       - class: scheduler.upstream_sensor.task_sensor.TaskSensor
         args: {"dag_id": "generate_base_data", "task_id": "generate_image"} 
@@ -38,7 +38,7 @@ watchers:
       input_root: mv/data/scene_root
     max_running_dag_runs: 3
     scene_id_keys: ["scene_id"]
-    triggered_dag_run_id_style: scene_id_keys_with_time
+    triggered_dag_run_id_style: scene_id_keys
     upstream:
       - class: scheduler.upstream_sensor.dag_sensor.DagSensor
         args: {"dag_id": "generate_base_data"} 
@@ -52,7 +52,7 @@ watchers:
       s5_params: "--endpoint-url http://192.168.1.1:9000"
     max_running_dag_runs: 3
     scene_id_keys: ["scene_id"]
-    triggered_dag_run_id_style: scene_id_keys_with_time
+    triggered_dag_run_id_style: scene_id_keys
     upstream:
       - class: scheduler.upstream_sensor.dag_sensor.DagSensor
         args: {"dag_id": "generate_base_data"}
@@ -65,10 +65,10 @@ watchers:
       s5_params: "--endpoint-url http://192.168.1.1:9000"
     max_running_dag_runs: 3
     scene_id_keys: ["scene_id"]
-    expand_by: {"dag_id": "dag_split_map_generator", "task_id": "generate_split_map", "xcom_key": "return_value", "out_col_name": "split_id"}
-    triggered_dag_run_id_style: scene_id_keys_with_time
+    expand_by: {"dag_id": "generate_base_data", "task_id": "generate_split_map", "xcom_key": "return_value", "out_col_name": "split_id"}
+    triggered_dag_run_id_style: scene_id_keys
     upstream:
       - class: scheduler.upstream_sensor.dag_sensor.DagSensor
-        args: {"dag_id": "dag_expandable"}
+        args: {"dag_id": "image_undistort"}
       - class: scheduler.upstream_sensor.task_sensor.TaskSensor
-        args: {"dag_id": "nvidia_segmentation", "task_id": "fisheye.task_inside_2"} 
+        args: {"dag_id": "nvidia_segmentation", "task_id": "fisheye.task_inside_2"}

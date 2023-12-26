@@ -5,6 +5,7 @@ import pandas as pd
 
 from ..helpers.airflow_api import get_dag_runs, get_xcom
 from ..helpers.base import extract_values
+from ..helpers.aiohttp_requests import Non200Response
 
 
 @dataclass
@@ -23,21 +24,26 @@ class XComQuery:
             return pd.DataFrame([])
 
         xcom_values_list = []
+        valid_index = []
         for idx, row in expand_dag_run_df.iterrows():
-            xcom = await get_xcom(
-                api_url,
-                row.dag_id,
-                row.dag_run_id,
-                self.task_id,
-                cookies,
-                xcom_key=self.xcom_key,
-                to_dataframe=False,
-            )
+            try:
+                xcom = await get_xcom(
+                    api_url,
+                    row.dag_id,
+                    row.dag_run_id,
+                    self.task_id,
+                    cookies,
+                    xcom_key=self.xcom_key,
+                    to_dataframe=False,
+                )
+            except Non200Response as e:
+                continue
             assert len(xcom) == 1
             xcom_values = extract_values(xcom[0]["value"])
             xcom_values_list.append(xcom_values)
+            valid_index.append(idx)
 
-        assert len(xcom_values_list) == len(expand_dag_run_df)
+        expand_dag_run_df = expand_dag_run_df.loc[valid_index, :]
         expand_dag_run_df.loc[:, self.out_col_name] = xcom_values_list
         expand_dag_run_df = expand_dag_run_df.explode(self.out_col_name, ignore_index=True)
         expand_dag_run_df.drop(expand_dag_run_df[expand_dag_run_df[self.out_col_name].isnull()].index, inplace=True)

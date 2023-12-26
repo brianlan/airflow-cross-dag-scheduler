@@ -2,6 +2,7 @@ import pytest
 import pandas as pd
 
 from scheduler.helpers.airflow_api import get_dag_runs, get_task_instance, get_xcom
+from scheduler.helpers.aiohttp_requests import Non200Response
 
 
 @pytest.fixture
@@ -351,3 +352,17 @@ async def test_get_xcom_specify_xcom_key(cookies):
         to_dataframe=False,
         xcom_key="f"
     ))[0]["value"] == "future"
+
+
+@pytest.mark.asyncio
+async def test_get_xcom_task_instance_not_exist(cookies):
+    with pytest.raises(Non200Response):
+        _ = await get_xcom(
+            "http://127.0.0.1:8080",
+            "dag_split_map_generator",
+            "manual__2023-12-25T10:27:12+00:00",
+            "task_id_not_exist",
+            cookies,
+            to_dataframe=False,
+            xcom_key="f"
+        )
