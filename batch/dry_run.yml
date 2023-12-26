@@ -1,61 +1,61 @@
 watchers:
-  - dag_id: generate_base_data
-    class: scheduler.watcher.restapi_watcher.RestAPIWatcher
-    fixed_dag_run_conf: 
-      s3_bucket: mv-4d-annotation
-      docker_image: ros:v1.0
-      data_root: mv/data/scene_root
-    max_running_dag_runs: 3
-    scene_id_keys: ["scene_id"]
-    triggered_dag_run_id_style: scene_id_keys
-    upstream: 
-      - class: scheduler.upstream_sensor.static_scene_list_sensor.StaticSceneListSensor
-        args:
-          scene_list:
-            - scene_id: scn_011
-            - scene_id: scn_012
-            - scene_id: scn_013
-            - scene_id: scn_014
-            - scene_id: scn_015
+  # - dag_id: generate_base_data
+  #   class: scheduler.watcher.restapi_watcher.RestAPIWatcher
+  #   fixed_dag_run_conf: 
+  #     s3_bucket: mv-4d-annotation
+  #     docker_image: ros:v1.0
+  #     data_root: mv/data/scene_root
+  #   max_running_dag_runs: 3
+  #   scene_id_keys: ["scene_id"]
+  #   triggered_dag_run_id_style: scene_id_keys
+  #   upstream: 
+  #     - class: scheduler.upstream_sensor.static_scene_list_sensor.StaticSceneListSensor
+  #       args:
+  #         scene_list:
+  #           - scene_id: scn_016
+  #           - scene_id: scn_017
+  #           - scene_id: scn_018
+  #           - scene_id: scn_019
+  #           - scene_id: scn_020
 
-  - dag_id: nvidia_segmentation
-    class: scheduler.watcher.restapi_watcher.RestAPIWatcher
-    fixed_dag_run_conf: 
-      docker_image: nvidia-seg:v1.0
-      data_root: mv/data/scene_root
-      output_dir: seg
-    max_running_dag_runs: 3
-    scene_id_keys: ["scene_id"]
-    triggered_dag_run_id_style: scene_id_keys
-    upstream:
-      - class: scheduler.upstream_sensor.task_sensor.TaskSensor
-        args: {"dag_id": "generate_base_data", "task_id": "generate_image"} 
+  # - dag_id: nvidia_segmentation
+  #   class: scheduler.watcher.restapi_watcher.RestAPIWatcher
+  #   fixed_dag_run_conf: 
+  #     docker_image: nvidia-seg:v1.0
+  #     data_root: mv/data/scene_root
+  #     output_dir: seg
+  #   max_running_dag_runs: 3
+  #   scene_id_keys: ["scene_id"]
+  #   triggered_dag_run_id_style: scene_id_keys
+  #   upstream:
+  #     - class: scheduler.upstream_sensor.task_sensor.TaskSensor
+  #       args: {"dag_id": "generate_base_data", "task_id": "generate_image"} 
 
-  - dag_id: generate_ipm
-    class: scheduler.watcher.restapi_watcher.RestAPIWatcher
-    fixed_dag_run_conf: 
-      image: ipm_slot:v1.0
-      input_root: mv/data/scene_root
-    max_running_dag_runs: 3
-    scene_id_keys: ["scene_id"]
-    triggered_dag_run_id_style: scene_id_keys
-    upstream:
-      - class: scheduler.upstream_sensor.dag_sensor.DagSensor
-        args: {"dag_id": "generate_base_data"} 
-      - class: scheduler.upstream_sensor.task_sensor.TaskSensor
-        args: {"dag_id": "nvidia_segmentation", "task_id": "fisheye.task_inside_2"} 
+  # - dag_id: generate_ipm
+  #   class: scheduler.watcher.restapi_watcher.RestAPIWatcher
+  #   fixed_dag_run_conf: 
+  #     image: ipm_slot:v1.0
+  #     input_root: mv/data/scene_root
+  #   max_running_dag_runs: 3
+  #   scene_id_keys: ["scene_id"]
+  #   triggered_dag_run_id_style: scene_id_keys
+  #   upstream:
+  #     - class: scheduler.upstream_sensor.dag_sensor.DagSensor
+  #       args: {"dag_id": "generate_base_data"} 
+  #     - class: scheduler.upstream_sensor.task_sensor.TaskSensor
+  #       args: {"dag_id": "nvidia_segmentation", "task_id": "fisheye.task_inside_2"} 
 
-  - dag_id: image_undistort
-    class: scheduler.watcher.restapi_watcher.RestAPIWatcher
-    fixed_dag_run_conf: 
-      image: slam:v1.0
-      s5_params: "--endpoint-url http://192.168.1.1:9000"
-    max_running_dag_runs: 3
-    scene_id_keys: ["scene_id"]
-    triggered_dag_run_id_style: scene_id_keys
-    upstream:
-      - class: scheduler.upstream_sensor.dag_sensor.DagSensor
-        args: {"dag_id": "generate_base_data"}
+  # - dag_id: image_undistort
+  #   class: scheduler.watcher.restapi_watcher.RestAPIWatcher
+  #   fixed_dag_run_conf: 
+  #     image: slam:v1.0
+  #     s5_params: "--endpoint-url http://192.168.1.1:9000"
+  #   max_running_dag_runs: 3
+  #   scene_id_keys: ["scene_id"]
+  #   triggered_dag_run_id_style: scene_id_keys
+  #   upstream:
+  #     - class: scheduler.upstream_sensor.dag_sensor.DagSensor
+  #       args: {"dag_id": "generate_base_data"}
 
 
   - dag_id: sparse_map_recon
@@ -63,7 +63,7 @@ watchers:
     fixed_dag_run_conf: 
       image: slam:v1.0
       s5_params: "--endpoint-url http://192.168.1.1:9000"
-    max_running_dag_runs: 3
+    max_running_dag_runs: 5
     scene_id_keys: ["scene_id"]
     expand_by: {"dag_id": "generate_base_data", "task_id": "generate_split_map", "xcom_key": "return_value", "out_col_name": "split_id"}
     triggered_dag_run_id_style: scene_id_keys
@@ -72,3 +72,18 @@ watchers:
         args: {"dag_id": "image_undistort"}
       - class: scheduler.upstream_sensor.task_sensor.TaskSensor
         args: {"dag_id": "nvidia_segmentation", "task_id": "fisheye.task_inside_2"}
+    watch_interval: 5
+
+
+  - dag_id: dense_map_recon
+    class: scheduler.watcher.restapi_watcher.RestAPIWatcher
+    fixed_dag_run_conf: 
+      image: slam:v1.0
+      s5_params: "--endpoint-url http://192.168.1.1:9000"
+    max_running_dag_runs: 5
+    scene_id_keys: ["scene_id", "split_id"]
+    triggered_dag_run_id_style: scene_id_keys
+    upstream:
+      - class: scheduler.upstream_sensor.dag_sensor.DagSensor
+        args: {"dag_id": "sparse_map_recon"}
+    watch_interval: 5

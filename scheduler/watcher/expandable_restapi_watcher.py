@@ -67,20 +67,21 @@ class ExpandableRestAPIWatcher(RestAPIWatcher):
 
     @property
     def expanded_scene_id_keys(self) -> List[str]:
-        expanded_scene_id_keys = self.scene_id_keys
         if self.expand_by:
-            expanded_scene_id_keys.append(self.expand_by.out_col_name)
-        return expanded_scene_id_keys
+            return self.scene_id_keys + [self.expand_by.out_col_name]
+        return self.scene_id_keys
 
-    async def expand(self, df: pd.DataFrame) -> pd.DataFrame:
+    async def expand(self, scenes: List[dict]) -> List[dict]:
         """The expansion will based on the same batch_id and scene_id_keys, expand the dag_run by the xcom values"""
         expand_dag_run_df = await self.expand_by.query(self.api_url, self.batch_id, self.cookies, state="success")
         
         if len(expand_dag_run_df) == 0:
-            return pd.DataFrame([])
+            return []
         
-        merged = pd.merge(df, expand_dag_run_df, how="inner", on=["batch_id"] + self.scene_id_keys).reset_index(drop=True)
-        return merged
+        df = pd.DataFrame.from_records(scenes)
+        merged = pd.merge(df, expand_dag_run_df, how="inner", on=self.scene_id_keys).reset_index(drop=True)
+        expanded_scenes = merged.to_dict(orient="records")
+        return expanded_scenes
 
     async def watch(self) -> WatchResult:
         logger.info(f"[Watcher {self.dag_id}] Start watching..")

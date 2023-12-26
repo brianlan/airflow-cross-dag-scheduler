@@ -29,24 +29,17 @@ async def test_expand(cookies):
         scene_id_keys=["scene_id"],
         expand_by=XComQuery("dag_split_map_generator", "generate_split_map", "return_value", "split_id")
     )
-    upstream_df = pd.DataFrame({
-        "batch_id": ["doesnt_matter"] * 2 + ["baidu_integration_test"] * 2,
-        "dag_id": ["dag_for_unittest"] * 4,
-        "scene_id": ["20231220_1101", "underground_1220", "underground_1220", "20231220_1101"],
-        "dag_run_id": ["manual__2023-12-20T03:38:06+00:00", "fixed_a001", "fixed_a002", "manual__2023-12-21T02:53:04+00:00"]
-    })
+    
+    upstream_scenes = [{"scene_id": "underground_1220"}, {"scene_id": "20231220_1101"}]
+    expanded_scenes = await watcher.expand(upstream_scenes)
 
-    expanded_df = await watcher.expand(upstream_df)
-
-    gt = pd.DataFrame({
-        "batch_id": ["baidu_integration_test"] * 5,
-        "dag_id": ["dag_for_unittest"] * 5,
-        "scene_id": ["20231220_1101"] * 5,
-        "dag_run_id": ["manual__2023-12-21T02:53:04+00:00"] * 5,
-        "split_id": [0, 1, 2, 3, 4],
-    })
-    gt.loc[:, "split_id"] = gt.split_id.astype("object")
-    pd.testing.assert_frame_equal(expanded_df, gt)
+    assert expanded_scenes == [
+        {"scene_id": "20231220_1101", "split_id": 0}, 
+        {"scene_id": "20231220_1101", "split_id": 1}, 
+        {"scene_id": "20231220_1101", "split_id": 2}, 
+        {"scene_id": "20231220_1101", "split_id": 3}, 
+        {"scene_id": "20231220_1101", "split_id": 4}, 
+    ]
 
 
 @pytest.mark.asyncio
@@ -63,15 +56,10 @@ async def test_expand_when_xcom_dag_not_exist(cookies):
         scene_id_keys=["scene_id"],
         expand_by=XComQuery("dag_not_exist", "generate_split_map", "return_value", "split_id")
     )
-    upstream_df = pd.DataFrame({
-        "batch_id": ["doesnt_matter"] * 2 + ["baidu_integration_test"] * 2,
-        "dag_id": ["dag_for_unittest"] * 4,
-        "scene_id": ["20231220_1101", "underground_1220", "underground_1220", "20231220_1101"],
-        "dag_run_id": ["manual__2023-12-20T03:38:06+00:00", "fixed_a001", "fixed_a002", "manual__2023-12-21T02:53:04+00:00"]
-    })
+    upstream_scenes = [{"scene_id": "underground_1220"}, {"scene_id": "20231220_1101"}]
 
-    expanded_df = await watcher.expand(upstream_df)
-    assert isinstance(expanded_df, pd.DataFrame)
+    expanded_df = await watcher.expand(upstream_scenes)
+    assert isinstance(expanded_df, list)
     assert len(expanded_df) == 0
 
 
@@ -89,16 +77,12 @@ async def test_expand_when_xcom_task_not_success(cookies):
         scene_id_keys=["scene_id"],
         expand_by=XComQuery("dag_split_map_generator", "generate_split_map", "return_value", "split_id")
     )
-    upstream_df = pd.DataFrame({
-        "batch_id": ["doesnt_matter"] * 2 + ["an_interesting_batch_id"] * 2,
-        "dag_id": ["dag_for_unittest"] * 4,
-        "scene_id": ["20231220_1101", "underground_1220", "underground_1220", "20231220_1101"],
-        "dag_run_id": ["manual__2023-12-20T03:38:06+00:00", "fixed_a001", "fixed_a002", "manual__2023-12-21T02:53:04+00:00"]
-    })
 
-    expanded_df = await watcher.expand(upstream_df)
+    upstream_scenes = [{"scene_id": "underground_1220"}, {"scene_id": "20231220_1101"}]
 
-    assert isinstance(expanded_df, pd.DataFrame)
+    expanded_df = await watcher.expand(upstream_scenes)
+
+    assert isinstance(expanded_df, list)
     assert len(expanded_df) == 0
 
 

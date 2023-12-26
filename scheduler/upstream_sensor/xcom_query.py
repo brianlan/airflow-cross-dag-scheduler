@@ -51,6 +51,6 @@ class XComQuery:
         if state is not None:
             expand_dag_run_df = expand_dag_run_df[expand_dag_run_df.dag_run_state == state].reset_index(drop=True)
 
-        output_columns = ["batch_id", "scene_id", self.out_col_name]
+        output_columns = ["scene_id", self.out_col_name]
 
         return expand_dag_run_df[output_columns]
