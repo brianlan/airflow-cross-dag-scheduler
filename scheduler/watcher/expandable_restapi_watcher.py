@@ -6,7 +6,8 @@ from loguru import logger
 
 from ..helpers.base import is_in_df, extract_values
 from ..helpers.airflow_api import get_dag_runs, trigger_dag, get_xcom
-from ..upstream_sensor.base import UpstreamSensor, XComQuery
+from ..upstream_sensor.xcom_query import XComQuery
+from ..upstream_sensor.base import UpstreamSensor
 from .base import BaseWatcher, WatchResult
 
 
@@ -88,28 +89,8 @@ class ExpandableRestAPIWatcher(BaseWatcher):
 
     async def expand(self, df: pd.DataFrame) -> pd.DataFrame:
         """The expansion will based on the same batch_id and scene_id_keys, expand the dag_run by the xcom values"""
-        expand_dag_run_df = await get_dag_runs(self.api_url, self.batch_id, self.expand_by.dag_id, self.cookies, to_dataframe=True, flatten_conf=True)
-
-        if len(expand_dag_run_df) == 0:
-            return pd.DataFrame([])
-
-        for idx, row in expand_dag_run_df.iterrows():
-            xcom = await get_xcom(
-                self.api_url,
-                row.dag_id,
-                row.dag_run_id,
-                self.expand_by.task_id,
-                self.cookies,
-                xcom_key=self.expand_by.xcom_key,
-                to_dataframe=False,
-            )
-            xcom_values = extract_values(xcom["value"])
-            expand_dag_run_df.loc[idx, self.expand_by.out_col_name] = xcom_values
-        
-        expand_dag_run_df.explode(self.expand_by.out_col_name, ignore_index=True, inplace=True)
-        expand_dag_run_df.drop(expand_dag_run_df[self.expand_by.out_col_name.isnull()].index, inplace=True)
-
-        merged = pd.merge(df, expand_dag_run_df, how="inner", on=self.scene_id_keys).reset_index(drop=True)
+        expand_dag_run_df = await self.expand_by.query(self.api_url, self.batch_id, self.cookies)
+        merged = pd.merge(df, expand_dag_run_df, how="inner", on=["batch_id"] + self.scene_id_keys).reset_index(drop=True)
         return merged
 
     async def watch(self) -> WatchResult:

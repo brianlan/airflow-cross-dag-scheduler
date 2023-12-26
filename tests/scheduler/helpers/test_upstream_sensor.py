@@ -1,13 +1,12 @@
 import pytest
 import pandas as pd
 import numpy as np
-from unittest.mock import AsyncMock, patch
 
 pd.set_option("display.max_columns", None)
 
-from scheduler.upstream_sensor.base import XComQuery
 from scheduler.upstream_sensor.dag_sensor import DagSensor
 from scheduler.upstream_sensor.task_sensor import TaskSensor
+from scheduler.upstream_sensor.xcom_query import XComQuery
 from scheduler.upstream_sensor.static_scene_list_sensor import StaticSceneListSensor
 from scheduler.helpers.aiohttp_requests import Non200Response
 
@@ -228,3 +227,18 @@ async def test_get_all_success_upstream_when_upstream_empty(cookies):
     status_df = pd.concat(status_df_list).reset_index(drop=True)
 
     assert len(status_df) == 0
+
+
+@pytest.mark.asyncio
+async def test_xcom_query(cookies):
+    xquery = XComQuery("dag_split_map_generator", "generate_split_map", "return_value", "split_id")
+    df = await xquery.query("http://127.0.0.1:8080", "baidu_integration_test", cookies)
+    gt = pd.DataFrame({
+        "batch_id": ["baidu_integration_test"] * 5,
+        # "dag_id": ["dag_split_map_generator"] * 5,
+        "scene_id": ["20231220_1101"] * 5,
+        # "dag_run_id": ["manual__2023-12-25T10:27:12+00:00"] * 5,
+        "split_id": [0, 1, 2, 3, 4],
+    })
+    gt.loc[:, "split_id"] = gt.split_id.astype("object")
+    pd.testing.assert_frame_equal( df, gt )

@@ -1,14 +1,5 @@
 from typing import Any, List
-from dataclasses import dataclass
 import importlib
-
-
-@dataclass
-class XComQuery:
-    dag_id: str
-    task_id: str
-    xcom_key: str
-    out_col_name: str
 
 
 class UpstreamSensor:

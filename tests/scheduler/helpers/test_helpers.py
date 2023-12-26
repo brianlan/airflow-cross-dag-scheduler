@@ -42,6 +42,7 @@ def test_extract_values():
     assert extract_values('[{"split_map": 0},{"split_map": 1}, {"split_map": 2}]') == [0, 1, 2]
     assert extract_values('[0,2,3,1]') == [0, 2, 3, 1]
     assert extract_values('[{"split_map": 0, "obj_id": 100},{"split_map": 1, "obj_id": 200}]') == [0, 1]
+    assert extract_values("[{'split_map': 0, 'obj_id': 100},{'split_map': 1, 'obj_id': 200}]") == [0, 1]
 
 # def test_read_cookie_session():
 #     assert read_cookie_session() == "b9c867dc-5319-4ad4-97e0-6474260b10de.x5LW6WQ0sSpk_vARkCsQzQfpXDE"

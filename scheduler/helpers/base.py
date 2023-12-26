@@ -19,6 +19,7 @@ def is_in_df(query_key_values, df):
 
 
 def extract_values(input: str) -> list:
+    input = input.replace("'", '"')
     d = json.loads(input)
     assert isinstance(d, list), "input string should be actually a list"
     assert len(d) > 0, "input should not be empty"
