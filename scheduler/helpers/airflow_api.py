@@ -1,6 +1,7 @@
 from typing import Union, List
 
 import pandas as pd
+from loguru import logger
 
 from . import aiohttp_requests as ar
 
@@ -124,6 +125,7 @@ async def get_task_instance(
 async def trigger_dag(api_url: str, dag_id: str, cookies: dict, dag_conf: dict = None, dag_run_id: str = None) -> None:
     """Trigger a DagRun using Airflow RestAPI:
     https://{api_url}/api/v1/dags/{dag_id}/dagRuns
+    If the dag is paused, nothing will happen.
 
     Parameters
     ----------
@@ -138,12 +140,37 @@ async def trigger_dag(api_url: str, dag_id: str, cookies: dict, dag_conf: dict =
     dag_run_id : str, optional
         if specified, will use this as DagRunId, by default None
     """
+    dag_info = await get_dag_info(api_url, dag_id, cookies)
+    if dag_info["is_paused"]:
+        msg = f"DAG {dag_id} is paused, skip triggering."
+        logger.info(msg)
+        return 200, {"message": msg}
+
     dag_conf = dag_conf or {}
     url = f"{api_url}/api/v1/dags/{dag_id}/dagRuns"
     payload = {"conf": dag_conf}
     if dag_run_id:
         payload["dag_run_id"] = dag_run_id
     return await ar.post(url, payload, cookies=cookies)
+
+
+async def get_dag_info(api_url: str, dag_id: str, cookies: dict) -> None:
+    """Get the basic info of a dag using Airflow RestAPI:
+    https://{api_url}/api/v1/dags/{dag_id}
+    If the dag is paused, nothing will happen.
+
+    Parameters
+    ----------
+    api_url : str
+        api endpoint url
+    dag_id : str
+        dag id
+    cookies: dict
+        cookies for authentication
+    """
+    url = f"{api_url}/api/v1/dags/{dag_id}"
+    status, json_data = await ar.get(url, cookies=cookies)
+    return json_data
 
 
 async def get_xcom(

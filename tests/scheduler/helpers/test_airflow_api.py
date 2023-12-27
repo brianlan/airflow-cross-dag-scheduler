@@ -1,7 +1,7 @@
 import pytest
 import pandas as pd
 
-from scheduler.helpers.airflow_api import get_dag_runs, get_task_instance, get_xcom
+from scheduler.helpers.airflow_api import get_dag_runs, get_task_instance, get_xcom, get_dag_info, trigger_dag
 from scheduler.helpers.aiohttp_requests import Non200Response
 
 
@@ -299,7 +299,10 @@ async def test_get_xcom(cookies):
         cookies,
         to_dataframe=False,
     )
-    assert result[0]["value"] == "[{'S3_SPLIT_MAP_ID': 0}, {'S3_SPLIT_MAP_ID': 1}, {'S3_SPLIT_MAP_ID': 2}, {'S3_SPLIT_MAP_ID': 3}, {'S3_SPLIT_MAP_ID': 4}]"
+    assert (
+        result[0]["value"]
+        == "[{'S3_SPLIT_MAP_ID': 0}, {'S3_SPLIT_MAP_ID': 1}, {'S3_SPLIT_MAP_ID': 2}, {'S3_SPLIT_MAP_ID': 3}, {'S3_SPLIT_MAP_ID': 4}]"
+    )
     result_df = await get_xcom(
         "http://127.0.0.1:8080",
         "dag_split_map_generator",
@@ -315,7 +318,9 @@ async def test_get_xcom(cookies):
                 "dag_id": ["dag_split_map_generator"],
                 "key": ["return_value"],
                 "task_id": ["generate_split_map"],
-                "value": ["[{'S3_SPLIT_MAP_ID': 0}, {'S3_SPLIT_MAP_ID': 1}, {'S3_SPLIT_MAP_ID': 2}, {'S3_SPLIT_MAP_ID': 3}, {'S3_SPLIT_MAP_ID': 4}]"]
+                "value": [
+                    "[{'S3_SPLIT_MAP_ID': 0}, {'S3_SPLIT_MAP_ID': 1}, {'S3_SPLIT_MAP_ID': 2}, {'S3_SPLIT_MAP_ID': 3}, {'S3_SPLIT_MAP_ID': 4}]"
+                ],
             }
         ),
     )
@@ -323,35 +328,41 @@ async def test_get_xcom(cookies):
 
 @pytest.mark.asyncio
 async def test_get_xcom_specify_xcom_key(cookies):
-    assert (await get_xcom(
-        "http://127.0.0.1:8080",
-        "dag_split_map_generator",
-        "manual__2023-12-25T10:27:12+00:00",
-        "generate_xcom_key_value_pairs",
-        cookies,
-        to_dataframe=False,
-        xcom_key="return_value"
-    ))[0]["value"] == "{'p': 'past', 'f': 'future'}"
+    assert (
+        await get_xcom(
+            "http://127.0.0.1:8080",
+            "dag_split_map_generator",
+            "manual__2023-12-25T10:27:12+00:00",
+            "generate_xcom_key_value_pairs",
+            cookies,
+            to_dataframe=False,
+            xcom_key="return_value",
+        )
+    )[0]["value"] == "{'p': 'past', 'f': 'future'}"
 
-    assert (await get_xcom(
-        "http://127.0.0.1:8080",
-        "dag_split_map_generator",
-        "manual__2023-12-25T10:27:12+00:00",
-        "generate_xcom_key_value_pairs",
-        cookies,
-        to_dataframe=False,
-        xcom_key="p"
-    ))[0]["value"] == "past"
+    assert (
+        await get_xcom(
+            "http://127.0.0.1:8080",
+            "dag_split_map_generator",
+            "manual__2023-12-25T10:27:12+00:00",
+            "generate_xcom_key_value_pairs",
+            cookies,
+            to_dataframe=False,
+            xcom_key="p",
+        )
+    )[0]["value"] == "past"
 
-    assert (await get_xcom(
-        "http://127.0.0.1:8080",
-        "dag_split_map_generator",
-        "manual__2023-12-25T10:27:12+00:00",
-        "generate_xcom_key_value_pairs",
-        cookies,
-        to_dataframe=False,
-        xcom_key="f"
-    ))[0]["value"] == "future"
+    assert (
+        await get_xcom(
+            "http://127.0.0.1:8080",
+            "dag_split_map_generator",
+            "manual__2023-12-25T10:27:12+00:00",
+            "generate_xcom_key_value_pairs",
+            cookies,
+            to_dataframe=False,
+            xcom_key="f",
+        )
+    )[0]["value"] == "future"
 
 
 @pytest.mark.asyncio
@@ -364,5 +375,54 @@ async def test_get_xcom_task_instance_not_exist(cookies):
             "task_id_not_exist",
             cookies,
             to_dataframe=False,
-            xcom_key="f"
+            xcom_key="f",
         )
+
+
+@pytest.mark.asyncio
+async def test_get_dag_info(cookies):
+    dag_info = await get_dag_info(
+        "http://127.0.0.1:8080",
+        "dag_paused",
+        cookies,
+    )
+    dag_info.pop("file_token")
+    dag_info.pop("last_parsed_time")
+    assert dag_info == {
+        "dag_id": "dag_paused",
+        "default_view": "grid",
+        "description": "dag_paused",
+        "fileloc": "/opt/airflow/dags/dag_paused.py",
+        "has_import_errors": False,
+        "has_task_concurrency_limits": False,
+        "is_active": True,
+        "is_paused": True,
+        "is_subdag": False,
+        "last_expired": None,
+        "last_pickled": None,
+        "max_active_runs": 16,
+        "max_active_tasks": 16,
+        "next_dagrun": None,
+        "next_dagrun_create_after": None,
+        "next_dagrun_data_interval_end": None,
+        "next_dagrun_data_interval_start": None,
+        "owners": ["airflow"],
+        "pickle_id": None,
+        "root_dag_id": None,
+        "schedule_interval": None,
+        "scheduler_lock": None,
+        "tags": [{"name": "unit-testing"}],
+        "timetable_description": "Never, external triggers only",
+    }
+
+
+@pytest.mark.asyncio
+async def test_trigger_dag_when_dag_is_paused(cookies):
+    status, dag_info = await trigger_dag(
+        "http://127.0.0.1:8080",
+        "dag_paused",
+        cookies,
+    )
+    assert status == 200
+    assert "message" in dag_info
+    assert "paused" in dag_info["message"]

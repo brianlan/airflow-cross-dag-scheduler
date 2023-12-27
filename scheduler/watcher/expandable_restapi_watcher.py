@@ -4,11 +4,9 @@ import time
 import pandas as pd
 from loguru import logger
 
-from ..helpers.base import is_in_df
-from ..helpers.airflow_api import get_dag_runs, trigger_dag
+from ..helpers.airflow_api import get_dag_runs
 from .restapi_watcher import RestAPIWatcher
 from ..upstream_sensor.xcom_query import XComQuery
-from ..upstream_sensor.base import UpstreamSensor
 from .base import WatchResult
 
 
