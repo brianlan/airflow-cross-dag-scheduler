@@ -1,14 +1,27 @@
-from typing import Any
+from typing import List
 
 import pandas as pd
+from pandas.core.api import DataFrame as DataFrame
 
+from scheduler.upstream_sensor.xcom_query import XComQuery
 from ..helpers.airflow_api import get_dag_runs
 from .base import UpstreamSensor
+from .expandable import Expandable
+from .reducible import Reducible
 
 
 class DagSensor(UpstreamSensor):
-    def __init__(self, api_url: str, batch_id: str, cookies: dict, *, dag_id: str = None, **kwargs) -> None:
-        """_summary_
+    def __init__(
+        self,
+        api_url: str,
+        batch_id: str,
+        cookies: dict,
+        *,
+        dag_id: str = None,
+        base_scene_id_keys: List[str] = None,
+        **kwargs
+    ) -> None:
+        """Used to sense the upstream DagRun's state
 
         Parameters
         ----------
@@ -20,15 +33,20 @@ class DagSensor(UpstreamSensor):
             the upstream dag_id that the sensor is going to sense its state
         cookies : dict
             cookie dict that required by Airflow REST API for authentication
+        base_scene_id_keys : List[str], optional
+            The keys that determines a scene.
         """
         super().__init__()
         self.api_url = api_url
         self.batch_id = batch_id
+        self.base_scene_id_keys = base_scene_id_keys
         self.dag_id = dag_id
         self.cookies = cookies
 
     async def sense(self, state: str = None) -> pd.DataFrame:
-        dag_run_df = await get_dag_runs(self.api_url, self.batch_id, self.dag_id, self.cookies, to_dataframe=True, flatten_conf=True)
+        dag_run_df = await get_dag_runs(
+            self.api_url, self.batch_id, self.dag_id, self.cookies, to_dataframe=True, flatten_conf=True
+        )
 
         if len(dag_run_df) == 0:
             return pd.DataFrame([])
@@ -41,3 +59,13 @@ class DagSensor(UpstreamSensor):
     @property
     def query_key_values(self) -> list[str]:
         return {"batch_id": self.batch_id, "dag_id": self.dag_id}
+
+
+class ExpandableDagSensor(Expandable, DagSensor):
+    def __init__(self, expand_by: XComQuery, *args, **kwargs) -> None:
+        super().__init__(expand_by, *args, **kwargs)
+
+
+class ReducibleDagSensor(Reducible, DagSensor):
+    def __init__(self, reduce_by: XComQuery, *args, **kwargs) -> None:
+        super().__init__(reduce_by, *args, **kwargs)
