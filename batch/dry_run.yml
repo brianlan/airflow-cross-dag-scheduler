@@ -12,11 +12,11 @@ watchers:
       - class: scheduler.upstream_sensor.static_scene_list_sensor.StaticSceneListSensor
         args:
           scene_list:
-            - scene_id: scn_016
-            - scene_id: scn_017
-            - scene_id: scn_018
-            - scene_id: scn_019
-            - scene_id: scn_020
+            - scene_id: scn_021
+            - scene_id: scn_022
+            - scene_id: scn_023
+            - scene_id: scn_024
+            - scene_id: scn_025
 
   - dag_id: nvidia_segmentation
     class: scheduler.watcher.restapi_watcher.RestAPIWatcher

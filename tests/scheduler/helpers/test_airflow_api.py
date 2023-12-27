@@ -89,6 +89,14 @@ async def test_get_task_instance(cookies):
     ]
 
 
+@pytest.mark.asyncio
+async def test_get_task_instance_when_ti_not_exist(cookies):
+    with pytest.raises(Non200Response):
+        _ = await get_task_instance(
+            "http://127.0.0.1:8080", "dag_run_without_task", "to_remove", "task_xxx", cookies, to_dataframe=False
+        )
+
+
 # @pytest.mark.asyncio
 # async def test_get_task_instances(cookies):
 #     task_instances = await get_task_instances("http://127.0.0.1:8080", "dag_for_unittest", "fixed_a001", cookies, to_dataframe=False)
