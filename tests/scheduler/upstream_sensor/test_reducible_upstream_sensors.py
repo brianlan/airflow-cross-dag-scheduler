@@ -27,10 +27,35 @@ async def test_reduce_dag_sensor(cookies):
     reduced_df = await sensor.sense()
     gt = pd.DataFrame({
         "scene_id": ["20231220_1101"],
-        "batch_id": [["baidu_integration_test", "baidu_integration_test", "baidu_integration_test", np.nan, np.nan]],
-        "dag_id": [["dag_expandable", "dag_expandable", "dag_expandable", np.nan, np.nan]],
-        "dag_run_id": [["manual__2023-12-25T09:44:03+00:00", "20231220_1101_split_0", "20231220_1101_split_2", np.nan, np.nan]],
-        "dag_run_state": [["success", "success", "failed", np.nan, np.nan]],
+        "batch_id": [["baidu_integration_test"] * 5],
+        "dag_id": [["dag_expandable"] * 5],
+        "dag_run_id": [["manual__2023-12-25T09:44:03+00:00", "20231220_1101_split_0", "20231220_1101_split_2", "20231220_1101_split_3", "20231220_1101_split_4"]],
+        "dag_run_state": [["success", "success", "failed", "success", "success"]],
+        "state": ["failed"],
+    })
+    pd.testing.assert_frame_equal(
+        reduced_df[["scene_id", "batch_id", "dag_id", "dag_run_id", "dag_run_state", "state"]], 
+        gt
+    )
+
+
+@pytest.mark.asyncio
+async def test_reduce_dag_sensor_less_than_xcom_expands(cookies):
+    sensor = ReducibleDagSensor(
+        XComQuery("dag_split_map_generator", "generate_split_map", "return_value", "split_id"),
+        "http://127.0.0.1:8080",
+        "a_new_batch_id",
+        cookies,
+        dag_id="dag_expandable",
+        base_scene_id_keys=["scene_id"],
+    )
+    reduced_df = await sensor.sense()
+    gt = pd.DataFrame({
+        "scene_id": ["underground_1220"],
+        "batch_id": [["a_new_batch_id", "a_new_batch_id", np.nan]],
+        "dag_id": [["dag_expandable", "dag_expandable", np.nan]],
+        "dag_run_id": [["runid_underground_0", "runid_underground_1", np.nan]],
+        "dag_run_state": [["success", "success", np.nan]],
         "state": ["failed"],
     })
     pd.testing.assert_frame_equal(

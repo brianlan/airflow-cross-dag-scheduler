@@ -85,6 +85,8 @@ async def test_get_existing_scenes_multi_scene_id_keys(cookies):
         {"scene_id": "20231220_1101", "split_id": 1, "state": "success"},
         {"scene_id": "20231220_1101", "split_id": 0, "state": "success"},
         {"scene_id": "20231220_1101", "split_id": 2, "state": "failed"},
+        {"scene_id": "20231220_1101", "split_id": 3, "state": "success"},
+        {"scene_id": "20231220_1101", "split_id": 4, "state": "success"},
     ]
 
 
@@ -141,6 +143,8 @@ async def test_get_all_ready_scene_with_expandable_upstream_sensor_2(cookies):
     assert result == [
         {"scene_id": "20231220_1101", "split_id": 0},
         {"scene_id": "20231220_1101", "split_id": 1},
+        {"scene_id": "20231220_1101", "split_id": 3},
+        {"scene_id": "20231220_1101", "split_id": 4},
     ]
 
 
@@ -169,4 +173,6 @@ async def test_get_all_ready_scene_with_expandable_upstream_sensor_3(cookies):
         {"scene_id": "20231220_1101", "split_id": 0},
         {"scene_id": "20231220_1101", "split_id": 1},
         {"scene_id": "20231220_1101", "split_id": 2},
+        {"scene_id": "20231220_1101", "split_id": 3},
+        {"scene_id": "20231220_1101", "split_id": 4},
     ]
