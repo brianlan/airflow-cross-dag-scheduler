@@ -1,6 +1,7 @@
 from typing import List
 import time
 
+import numpy as np
 import pandas as pd
 from loguru import logger
 
@@ -132,10 +133,18 @@ class RestAPIWatcher(BaseWatcher):
         if len(success_df) == 0:
             return []
 
+        dtype_map = {
+            np.int64: int,
+            np.int32: int,
+            str: str
+        }
+
         _scene_id_keys = self.scene_id_keys[0] if len(self.scene_id_keys) == 1 else self.scene_id_keys # to prevent pandas warning
         for skeys, subdf in success_df.groupby(_scene_id_keys):
             if isinstance(skeys, str):
                 skeys = [skeys]
+            skeys = tuple(dtype_map[type(v)](v) for v in skeys)  # convert dtype to prevent Airflow complaining about json serialization
+
             num_success = sum([is_in_df(snr.query_key_values, subdf) for snr in self.upstream_sensors])
             if num_success == len(self.upstream_sensors):
                 ready_scenes.append({k: v for k, v in zip(self.scene_id_keys, skeys)})
