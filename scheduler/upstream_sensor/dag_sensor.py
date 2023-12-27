@@ -3,7 +3,6 @@ from typing import List
 import pandas as pd
 from pandas.core.api import DataFrame as DataFrame
 
-from scheduler.upstream_sensor.xcom_query import XComQuery
 from ..helpers.airflow_api import get_dag_runs
 from .base import UpstreamSensor
 from .expandable import Expandable
@@ -62,10 +61,10 @@ class DagSensor(UpstreamSensor):
 
 
 class ExpandableDagSensor(Expandable, DagSensor):
-    def __init__(self, expand_by: XComQuery, *args, **kwargs) -> None:
-        super().__init__(expand_by, *args, **kwargs)
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
 
 
 class ReducibleDagSensor(Reducible, DagSensor):
-    def __init__(self, reduce_by: XComQuery, *args, **kwargs) -> None:
-        super().__init__(reduce_by, *args, **kwargs)
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)

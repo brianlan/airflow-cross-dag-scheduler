@@ -6,7 +6,6 @@ pd.set_option("display.max_columns", None)
 
 from scheduler.upstream_sensor.dag_sensor import ReducibleDagSensor
 from scheduler.upstream_sensor.task_sensor import ReducibleTaskSensor
-from scheduler.upstream_sensor.xcom_query import XComQuery
 
 
 @pytest.fixture
@@ -17,12 +16,12 @@ def cookies():
 @pytest.mark.asyncio
 async def test_reduce_dag_sensor(cookies):
     sensor = ReducibleDagSensor(
-        XComQuery("dag_split_map_generator", "generate_split_map", "return_value", "split_id"),
         "http://127.0.0.1:8080",
         "baidu_integration_test",
         cookies,
         dag_id="dag_expandable",
         base_scene_id_keys=["scene_id"],
+        reduce_by={"dag_id": "dag_split_map_generator", "task_id": "generate_split_map", "xcom_key": "return_value", "refer_name": "split_id"},
     )
     reduced_df = await sensor.sense()
     gt = pd.DataFrame({
@@ -42,12 +41,12 @@ async def test_reduce_dag_sensor(cookies):
 @pytest.mark.asyncio
 async def test_reduce_dag_sensor_less_than_xcom_expands(cookies):
     sensor = ReducibleDagSensor(
-        XComQuery("dag_split_map_generator", "generate_split_map", "return_value", "split_id"),
         "http://127.0.0.1:8080",
         "a_new_batch_id",
         cookies,
         dag_id="dag_expandable",
         base_scene_id_keys=["scene_id"],
+        reduce_by={"dag_id": "dag_split_map_generator", "task_id": "generate_split_map", "xcom_key": "return_value", "refer_name": "split_id"},
     )
     reduced_df = await sensor.sense()
     gt = pd.DataFrame({
@@ -67,13 +66,13 @@ async def test_reduce_dag_sensor_less_than_xcom_expands(cookies):
 @pytest.mark.asyncio
 async def test_reduce_task_sensor(cookies):
     sensor = ReducibleTaskSensor(
-        XComQuery("dag_split_map_generator", "generate_split_map", "return_value", "split_id"),
         "http://127.0.0.1:8080",
         "baidu_integration_test",
         cookies,
         dag_id="dag_expandable",
         task_id="hello",
         base_scene_id_keys=["scene_id"],
+        reduce_by={"dag_id": "dag_split_map_generator", "task_id": "generate_split_map", "xcom_key": "return_value", "refer_name": "split_id"},
     )
     reduced_df = await sensor.sense()
     gt = pd.DataFrame({
@@ -95,12 +94,12 @@ async def test_reduce_task_sensor(cookies):
 @pytest.mark.asyncio
 async def test_reduce_when_xcom_dag_not_exist(cookies):
     sensor = ReducibleDagSensor(
-        XComQuery("dag_not_exist", "generate_split_map", "return_value", "split_id"),
         "http://127.0.0.1:8080",
         "baidu_integration_test",
         cookies,
         dag_id="dag_for_unittest",
         base_scene_id_keys=["scene_id"],
+        reduce_by={"dag_id": "dag_not_exist", "task_id": "generate_split_map", "xcom_key": "return_value", "refer_name": "split_id"},
     )
 
     reduced_df = await sensor.sense()
@@ -111,12 +110,12 @@ async def test_reduce_when_xcom_dag_not_exist(cookies):
 @pytest.mark.asyncio
 async def test_reduce_when_xcom_task_not_success(cookies):
     sensor = ReducibleDagSensor(
-        XComQuery("dag_split_map_generator", "generate_split_map", "return_value", "split_id"),
         "http://127.0.0.1:8080",
         "an_interesting_batch_id",
         cookies,
         dag_id="dag_for_unittest",
         base_scene_id_keys=["scene_id"],
+        reduce_by={"dag_id": "dag_split_map_generator", "task_id": "generate_split_map", "xcom_key": "return_value", "refer_name": "split_id"},
     )
 
     reduced_df = await sensor.sense()

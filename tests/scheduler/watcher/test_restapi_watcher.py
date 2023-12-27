@@ -7,7 +7,6 @@ pd.set_option("display.max_columns", None)
 from scheduler.watcher.restapi_watcher import RestAPIWatcher
 from scheduler.upstream_sensor.dag_sensor import DagSensor, ExpandableDagSensor
 from scheduler.upstream_sensor.task_sensor import TaskSensor
-from scheduler.upstream_sensor.xcom_query import XComQuery
 
 
 @pytest.fixture
@@ -98,12 +97,12 @@ async def test_get_all_ready_scene_with_expandable_upstream_sensor(cookies):
         cookies,
         [
             ExpandableDagSensor(
-                XComQuery("dag_split_map_generator", "generate_split_map", "return_value", "split_id"),
                 "http://127.0.0.1:8080", 
                 "baidu_integration_test", 
                 cookies, 
                 dag_id="dag_for_unittest_another",
                 base_scene_id_keys=["scene_id"],
+                expand_by={"dag_id": "dag_split_map_generator", "task_id": "generate_split_map", "xcom_key": "return_value", "refer_name": "split_id"},
             )
         ],
         dag_id="downstream",
@@ -127,12 +126,12 @@ async def test_get_all_ready_scene_with_expandable_upstream_sensor_2(cookies):
         cookies,
         [
             ExpandableDagSensor(
-                XComQuery("dag_split_map_generator", "generate_split_map", "return_value", "split_id"),
                 "http://127.0.0.1:8080", 
                 "baidu_integration_test", 
                 cookies, 
                 dag_id="dag_for_unittest_another",
                 base_scene_id_keys=["scene_id"],
+                expand_by={"dag_id": "dag_split_map_generator", "task_id": "generate_split_map", "xcom_key": "return_value", "refer_name": "split_id"},
             ),
             TaskSensor("http://127.0.0.1:8080", "baidu_integration_test", cookies, dag_id="dag_expandable", task_id="world"), 
         ],
@@ -156,12 +155,12 @@ async def test_get_all_ready_scene_with_expandable_upstream_sensor_3(cookies):
         cookies,
         [
             ExpandableDagSensor(
-                XComQuery("dag_split_map_generator", "generate_split_map", "return_value", "split_id"),
                 "http://127.0.0.1:8080", 
                 "baidu_integration_test", 
                 cookies, 
                 dag_id="dag_for_unittest_another",
                 base_scene_id_keys=["scene_id"],
+                expand_by={"dag_id": "dag_split_map_generator", "task_id": "generate_split_map", "xcom_key": "return_value", "refer_name": "split_id"},
             ),
             TaskSensor("http://127.0.0.1:8080", "baidu_integration_test", cookies, dag_id="dag_expandable", task_id="hello"), 
         ],

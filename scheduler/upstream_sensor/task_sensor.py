@@ -2,7 +2,6 @@ from typing import List
 
 import pandas as pd
 
-from scheduler.upstream_sensor.xcom_query import XComQuery
 from ..helpers.airflow_api import get_dag_runs, get_task_instance
 from .base import UpstreamSensor
 from .expandable import Expandable
@@ -71,10 +70,10 @@ class TaskSensor(UpstreamSensor):
 
 
 class ExpandableTaskSensor(Expandable, TaskSensor):
-    def __init__(self, expand_by: XComQuery, *args, **kwargs) -> None:
-        super().__init__(expand_by, *args, **kwargs)
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
 
 
 class ReducibleTaskSensor(Reducible, TaskSensor):
-    def __init__(self, reduce_by: XComQuery, *args, **kwargs) -> None:
-        super().__init__(reduce_by, *args, **kwargs)
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)

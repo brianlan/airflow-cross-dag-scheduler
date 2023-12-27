@@ -6,7 +6,7 @@ from .xcom_query import XComQuery
 
 
 class Reducible:
-    def __init__(self, reduce_by: XComQuery, *args, **kwargs) -> None:
+    def __init__(self, *args, reduce_by: dict = None, **kwargs) -> None:
         """The class is a Mixin class, and can not be used alone.
 
         Parameters
@@ -22,7 +22,7 @@ class Reducible:
                 }
         """
         super().__init__(*args, **kwargs)
-        self.reduce_by = reduce_by
+        self.reduce_by = XComQuery(**reduce_by)
         assert 'base_scene_id_keys' in kwargs, "base_scene_id_keys should be provided for Expandable"
 
     async def sense(self, state: str = None) -> pd.DataFrame:
@@ -32,7 +32,7 @@ class Reducible:
 
     async def reduce(self, df: pd.DataFrame) -> List[dict]:
         """The reduction will based on the same batch_id and scene_id_keys"""
-        xcom_expanded_df = await self.reduce_by.query(self.api_url, self.batch_id, self.cookies, state="success")
+        xcom_expanded_df = await self.reduce_by.query(self.api_url, self.batch_id, self.cookies, state="success", base_scene_id_keys=self.base_scene_id_keys)
         
         if len(xcom_expanded_df) == 0:
             return pd.DataFrame([])

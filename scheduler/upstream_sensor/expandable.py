@@ -6,7 +6,7 @@ from .xcom_query import XComQuery
 
 
 class Expandable:
-    def __init__(self, expand_by: XComQuery, *args, **kwargs) -> None:
+    def __init__(self, *args, expand_by: dict = None, **kwargs) -> None:
         """The class is a Mixin class, and can not be used alone.
 
         Parameters
@@ -22,7 +22,7 @@ class Expandable:
                 }
         """
         super().__init__(*args, **kwargs)
-        self.expand_by = expand_by
+        self.expand_by = XComQuery(**expand_by)
         assert 'base_scene_id_keys' in kwargs, "base_scene_id_keys should be provided for Expandable"
 
     async def sense(self, state: str = None) -> pd.DataFrame:
@@ -32,10 +32,11 @@ class Expandable:
 
     async def expand(self, df: pd.DataFrame) -> List[dict]:
         """The expansion will based on the same batch_id and scene_id_keys, expand the dag_run by the xcom values"""
-        xcom_expanded_df = await self.expand_by.query(self.api_url, self.batch_id, self.cookies, state="success")
+        xcom_expanded_df = await self.expand_by.query(self.api_url, self.batch_id, self.cookies, state="success", base_scene_id_keys=self.base_scene_id_keys)
         
         if len(xcom_expanded_df) == 0:
             return pd.DataFrame([])
         
         merged_df = pd.merge(df, xcom_expanded_df, how="inner", on=self.base_scene_id_keys).reset_index(drop=True)
+        # merged_df.loc[:, self.expand_by.refer_name] = merged_df[self.expand_by.refer_name].astype("object")
         return merged_df

@@ -15,7 +15,7 @@ class XComQuery:
     xcom_key: str
     refer_name: str
 
-    async def query(self, api_url: str, batch_id: str, cookies: dict, state: str = None) -> pd.DataFrame:
+    async def query(self, api_url: str, batch_id: str, cookies: dict, base_scene_id_keys: List[str] = None, state: str = None) -> pd.DataFrame:
         expand_dag_run_df = await get_dag_runs(
             api_url, batch_id, self.dag_id, cookies, to_dataframe=True, flatten_conf=True
         )
@@ -51,6 +51,6 @@ class XComQuery:
         if state is not None:
             expand_dag_run_df = expand_dag_run_df[expand_dag_run_df.dag_run_state == state].reset_index(drop=True)
 
-        output_columns = ["scene_id", self.refer_name]
+        output_columns = base_scene_id_keys + [self.refer_name]
 
         return expand_dag_run_df[output_columns]

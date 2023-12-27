@@ -6,7 +6,6 @@ import traceback
 from loguru import logger
 
 from ..upstream_sensor.base import create_sensor
-from ..upstream_sensor.xcom_query import XComQuery
 
 
 class WatchResult:
@@ -62,7 +61,6 @@ def create_watcher(api_url: str, batch_id: str, cookies: dict, wcfg: dict):
         batch_id,
         cookies,
         [create_sensor(api_url, batch_id, cookies, s) for s in wcfg.pop("upstream")],
-        expand_by=None if "expand_by" not in wcfg else XComQuery(**wcfg.pop("expand_by")),
         **wcfg,
     )
     return watcher

@@ -232,7 +232,7 @@ async def test_get_all_success_upstream_when_upstream_empty(cookies):
 @pytest.mark.asyncio
 async def test_xcom_query(cookies):
     xquery = XComQuery("dag_split_map_generator", "generate_split_map", "return_value", "split_id")
-    df = await xquery.query("http://127.0.0.1:8080", "baidu_integration_test", cookies)
+    df = await xquery.query("http://127.0.0.1:8080", "baidu_integration_test", cookies, base_scene_id_keys=["scene_id"])
     gt = pd.DataFrame({
         # "batch_id": ["baidu_integration_test"] * 5,
         # "dag_id": ["dag_split_map_generator"] * 5,
@@ -247,6 +247,6 @@ async def test_xcom_query(cookies):
 @pytest.mark.asyncio
 async def test_xcom_query_task_instance_not_exist(cookies):
     xquery = XComQuery("dag_split_map_generator", "task_id_not_exist", "return_value", "split_id")
-    df = await xquery.query("http://127.0.0.1:8080", "baidu_integration_test", cookies)
+    df = await xquery.query("http://127.0.0.1:8080", "baidu_integration_test", cookies, base_scene_id_keys=["scene_id"])
     assert isinstance(df, pd.DataFrame)
     assert len(df) == 0
