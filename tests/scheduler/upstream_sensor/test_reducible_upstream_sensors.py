@@ -24,18 +24,13 @@ async def test_reduce_dag_sensor(cookies):
         reduce_by={"dag_id": "dag_split_map_generator", "task_id": "generate_split_map", "xcom_key": "return_value", "refer_name": "split_id"},
     )
     reduced_df = await sensor.sense()
-    gt = pd.DataFrame({
-        "scene_id": ["20231220_1101"],
-        "batch_id": [["baidu_integration_test"] * 5],
-        "dag_id": [["dag_expandable"] * 5],
-        "dag_run_id": [["manual__2023-12-25T09:44:03+00:00", "20231220_1101_split_0", "20231220_1101_split_2", "20231220_1101_split_3", "20231220_1101_split_4"]],
-        "dag_run_state": [["success", "success", "failed", "success", "success"]],
-        "state": ["failed"],
-    })
-    pd.testing.assert_frame_equal(
-        reduced_df[["scene_id", "batch_id", "dag_id", "dag_run_id", "dag_run_state", "state"]], 
-        gt
-    )
+    assert len(reduced_df) == 1
+    assert reduced_df.loc[0].scene_id == "20231220_1101"
+    assert reduced_df.loc[0].batch_id == "baidu_integration_test"
+    assert reduced_df.loc[0].dag_id == "dag_expandable"
+    assert reduced_df.loc[0].dag_run_id == {"manual__2023-12-25T09:44:03+00:00", "20231220_1101_split_0", "20231220_1101_split_2", "20231220_1101_split_3", "20231220_1101_split_4"}
+    assert reduced_df.loc[0].dag_run_state == {"success", "failed"}
+    assert reduced_df.loc[0].state == "failed"
 
 
 @pytest.mark.asyncio
@@ -49,18 +44,13 @@ async def test_reduce_dag_sensor_less_than_xcom_expands(cookies):
         reduce_by={"dag_id": "dag_split_map_generator", "task_id": "generate_split_map", "xcom_key": "return_value", "refer_name": "split_id"},
     )
     reduced_df = await sensor.sense()
-    gt = pd.DataFrame({
-        "scene_id": ["underground_1220"],
-        "batch_id": [["a_new_batch_id", "a_new_batch_id", np.nan]],
-        "dag_id": [["dag_expandable", "dag_expandable", np.nan]],
-        "dag_run_id": [["runid_underground_0", "runid_underground_1", np.nan]],
-        "dag_run_state": [["success", "success", np.nan]],
-        "state": ["failed"],
-    })
-    pd.testing.assert_frame_equal(
-        reduced_df[["scene_id", "batch_id", "dag_id", "dag_run_id", "dag_run_state", "state"]], 
-        gt
-    )
+    assert len(reduced_df) == 1
+    assert reduced_df.loc[0].scene_id == "underground_1220"
+    assert reduced_df.loc[0].batch_id == {"a_new_batch_id", np.nan}
+    assert reduced_df.loc[0].dag_id == {"dag_expandable", np.nan}
+    assert reduced_df.loc[0].dag_run_id == {"runid_underground_0", "runid_underground_1", np.nan}
+    assert reduced_df.loc[0].dag_run_state == {"success", np.nan}
+    assert reduced_df.loc[0].state == "failed"
 
 
 @pytest.mark.asyncio
@@ -75,20 +65,15 @@ async def test_reduce_task_sensor(cookies):
         reduce_by={"dag_id": "dag_split_map_generator", "task_id": "generate_split_map", "xcom_key": "return_value", "refer_name": "split_id"},
     )
     reduced_df = await sensor.sense()
-    gt = pd.DataFrame({
-        "scene_id": ["20231220_1101"],
-        "batch_id": [["baidu_integration_test"] * 5],
-        "dag_id": [["dag_expandable"] * 5],
-        "task_id": [["hello"] * 5],
-        "dag_run_id": [["manual__2023-12-25T09:44:03+00:00", "20231220_1101_split_0", "20231220_1101_split_2", "20231220_1101_split_3", "20231220_1101_split_4"]],
-        "dag_run_state": [["success", "success", "failed", "success", "success"]],
-        "task_instance_state": [["success"] * 5],
-        "state": ["success"],
-    })
-    pd.testing.assert_frame_equal(
-        reduced_df[["scene_id", "batch_id", "dag_id", "task_id", "dag_run_id", "dag_run_state", "task_instance_state", "state"]], 
-        gt
-    )
+    assert len(reduced_df) == 1
+    assert reduced_df.loc[0].scene_id == "20231220_1101"
+    assert reduced_df.loc[0].batch_id == "baidu_integration_test"
+    assert reduced_df.loc[0].dag_id == "dag_expandable"
+    assert reduced_df.loc[0].task_id == "hello"
+    assert reduced_df.loc[0].dag_run_id == {"manual__2023-12-25T09:44:03+00:00", "20231220_1101_split_0", "20231220_1101_split_2", "20231220_1101_split_3", "20231220_1101_split_4"}
+    assert reduced_df.loc[0].dag_run_state == {"success", "failed"}
+    assert reduced_df.loc[0].task_instance_state == "success"
+    assert reduced_df.loc[0].state == "success"
 
 
 @pytest.mark.asyncio

@@ -175,3 +175,15 @@ async def test_get_all_ready_scene_with_expandable_upstream_sensor_3(cookies):
         {"scene_id": "20231220_1101", "split_id": 3},
         {"scene_id": "20231220_1101", "split_id": 4},
     ]
+
+
+@pytest.mark.asyncio
+async def test_scene_id_dtypes():
+    watcher = RestAPIWatcher( "a", "a", None, [], dag_id="a", scene_id_keys=["scene_id"], scene_id_dtypes=["str"], )
+    assert watcher.convert_dtypes({"scene_id": 123.0}) == {"scene_id": "123.0"}
+    watcher = RestAPIWatcher( "a", "a", None, [], dag_id="a", scene_id_keys=["scene_id"], scene_id_dtypes=["int"], )
+    assert watcher.convert_dtypes({"scene_id": 123.0}) == {"scene_id": 123}
+    watcher = RestAPIWatcher( "a", "a", None, [], dag_id="a", scene_id_keys=["scene_id"], scene_id_dtypes=["float"], )
+    assert watcher.convert_dtypes({"scene_id": "123.0"}) == {"scene_id": 123.0}
+    watcher = RestAPIWatcher( "a", "a", None, [], dag_id="a", scene_id_keys=["scene_id", "split_id"], scene_id_dtypes=["str", "int"], )
+    assert watcher.convert_dtypes({"scene_id": 123.0, "split_id": 4.0}) == {"scene_id": "123.0", "split_id": 4}

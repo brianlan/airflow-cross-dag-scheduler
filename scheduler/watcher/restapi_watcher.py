@@ -21,6 +21,7 @@ class RestAPIWatcher(BaseWatcher):
         dag_id: str = None,
         fixed_dag_run_conf: dict = None,
         scene_id_keys: List[str] = None,
+        scene_id_dtypes: List[str] = None,
         max_running_dag_runs: int = 3,
         triggered_dag_run_id_style: str = "timestamp",
         watch_interval: int = 10,
@@ -48,6 +49,8 @@ class RestAPIWatcher(BaseWatcher):
             If task_id is not provided, this upstream is considered as success when the dag is success.
         scene_id_keys : List[str]
             The keys that determines a scene.
+        scene_id_dtypes : List[str]
+            The dtypes of each element in `scene_id_keys`.
         cookie_session_path : str
             the path to the cookie_session file that required by Airflow REST API for authentication
         max_running_dag_runs : int, optional
@@ -61,6 +64,7 @@ class RestAPIWatcher(BaseWatcher):
 
         # check the input's validity
         assert len(scene_id_keys) > 0, "scene_id_keys should not be empty"
+        assert not scene_id_dtypes or len(scene_id_keys) == len(scene_id_dtypes), "scene_id_keys and scene_id_dtypes should have the same length"
         assert triggered_dag_run_id_style in ["timestamp", "scene_id_keys", "scene_id_keys_with_time"], "invalid triggered_dag_run_id_style"
         # assert len(upstream_sensors) == len(
         #     {u.dag_id for u in upstream_sensors}
@@ -70,6 +74,7 @@ class RestAPIWatcher(BaseWatcher):
         self.api_url = api_url
         self.dag_id = dag_id
         self.scene_id_keys = scene_id_keys
+        self.scene_id_dtypes = scene_id_dtypes
         self.fixed_dag_run_conf = fixed_dag_run_conf
         self.upstream_sensors = upstream_sensors
         self.max_running_dag_runs = max_running_dag_runs
@@ -78,6 +83,13 @@ class RestAPIWatcher(BaseWatcher):
 
     def __repr__(self) -> str:
         return f"RestAPIWatcher({self.dag_id})"
+
+    def convert_dtypes(self, scene: dict) -> dict:
+        """Convert the dtypes of the scene_id_values"""
+        if self.scene_id_dtypes is None:
+            return scene
+        _map = {'int': int, 'float': float, 'str': str, 'bool': bool}
+        return {k: _map[self.scene_id_dtypes[i]](v) for i, (k, v) in enumerate(scene.items())}
 
     async def watch(self) -> WatchResult:
         logger.info(f"[Watcher {self.dag_id}] Start watching..")
@@ -95,7 +107,7 @@ class RestAPIWatcher(BaseWatcher):
             has_been_triggered = [e for e in existing_scenes if all(e[k] == ready_scene[k] for k in self.scene_id_keys)]
             if len(has_been_triggered) == 0 and trigger_quota > 0:
                 result.action = "trigger"
-                result.context = ready_scene
+                result.context = self.convert_dtypes(ready_scene)
                 return result
         
         return result

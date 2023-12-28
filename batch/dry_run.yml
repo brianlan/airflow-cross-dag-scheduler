@@ -17,6 +17,8 @@ watchers:
             - scene_id: scn_028
             - scene_id: scn_029
             - scene_id: scn_030
+            - scene_id: scn_031
+            - scene_id: scn_032
 
   - dag_id: nvidia_segmentation
     class: scheduler.watcher.restapi_watcher.RestAPIWatcher
@@ -65,6 +67,7 @@ watchers:
       s5_params: "--endpoint-url http://192.168.1.1:9000"
     max_running_dag_runs: 5
     scene_id_keys: ["scene_id", "split_id"]
+    scene_id_dtypes: ["str", "int"]
     expand_by: {"dag_id": "generate_base_data", "task_id": "generate_split_map", "xcom_key": "return_value", "refer_name": "split_id"}
     triggered_dag_run_id_style: scene_id_keys_with_time
     upstream:
@@ -89,6 +92,7 @@ watchers:
       s5_params: "--endpoint-url http://192.168.1.1:9000"
     max_running_dag_runs: 5
     scene_id_keys: ["scene_id", "split_id"]
+    scene_id_dtypes: ["str", "int"]
     triggered_dag_run_id_style: scene_id_keys_with_time
     upstream:
       - class: scheduler.upstream_sensor.dag_sensor.DagSensor

@@ -123,12 +123,21 @@ async def get_task_instance(
     """
     url = f"{api_url}/api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}"
     status, ti = await ar.get(url, cookies=cookies)
-    ti = [ti]
     if to_dataframe:
-        ti = pd.DataFrame.from_records(ti)
+        ti = pd.DataFrame.from_records([ti])
         ti.loc[:, "task_instance_state"] = ti.state
-    if columns_to_drop:
-        ti.drop(columns=list(columns_to_drop), inplace=True)
+
+        if columns_to_drop:
+            columns_actually_dropped = set(columns_to_drop).intersection(ti.columns)
+            ti.drop(columns=list(columns_actually_dropped), inplace=True)
+    else:
+        ti["task_instance_state"] = ti["state"]
+
+        if columns_to_drop:
+            columns_actually_dropped = set(columns_to_drop).intersection(ti.keys())
+            for col in columns_actually_dropped:
+                del ti[col]
+
     return ti
 
 
@@ -158,10 +167,10 @@ async def trigger_dag(api_url: str, dag_id: str, cookies: dict, dag_conf: dict =
 
     dag_conf = dag_conf or {}
 
-    dtype_map = {np.int64: int, np.int32: int, np.float64: float, np.float32: float, str: str}
+    dtype_map = {np.int64: int, np.int32: int, np.float64: float, np.float32: float}
 
     dag_conf = {
-        k: dtype_map[type(dag_conf[k])](dag_conf[k]) for k in dag_conf
+        k: dtype_map.get(type(dag_conf[k]), type(dag_conf[k]))(dag_conf[k]) for k in dag_conf
     }  # convert dtype to prevent Airflow complaining about json serialization
 
     url = f"{api_url}/api/v1/dags/{dag_id}/dagRuns"
