@@ -99,3 +99,19 @@ async def test_expand_when_xcom_task_not_success(cookies):
     expanded_df = await sensor.sense()
     assert isinstance(expanded_df, pd.DataFrame)
     assert len(expanded_df) == 0
+
+
+@pytest.mark.asyncio
+async def test_expand_when_upstream_dag_empty(cookies):
+    sensor = ExpandableDagSensor(
+        "http://127.0.0.1:8080",
+        "batch_id_not_exist",
+        cookies,
+        dag_id="dag_for_unittest",
+        base_scene_id_keys=["scene_id"],
+        expand_by={"dag_id": "dag_split_map_generator", "task_id": "generate_split_map", "xcom_key": "return_value", "refer_name": "split_id"},
+    )
+
+    expanded_df = await sensor.sense()
+    assert isinstance(expanded_df, pd.DataFrame)
+    assert len(expanded_df) == 0
