@@ -37,16 +37,16 @@ class Reducible:
         if len(xcom_expanded_df) == 0:
             return pd.DataFrame([])
         
-        expanded_scene_id_keys = self.base_scene_id_keys + [self.reduce_by.refer_name]
+        full_scene_id_keys = self.base_scene_id_keys + [self.reduce_by.refer_name]
         _scene_id_keys = self.base_scene_id_keys[0] if len(self.base_scene_id_keys) == 1 else self.base_scene_id_keys # to prevent pandas warning
-        merged_df = pd.merge(df, xcom_expanded_df, how="outer", on=expanded_scene_id_keys)
+        merged_df = pd.merge(df, xcom_expanded_df, how="outer", on=full_scene_id_keys)
         # merged_df.loc[:, self.reduce_by.refer_name] = xcom_expanded_df[self.reduce_by.refer_name]
 
         # critical_columns = ["batch_id", "dag_id", "task_id"]
         # critical_columns = set(critical_columns) & set(df.columns)
-        other_columns = [c for c in merged_df.columns if c not in expanded_scene_id_keys and c != 'state']
+        other_columns = [c for c in merged_df.columns if c not in full_scene_id_keys + ['state', 'conf']]
         reduced_df = merged_df.groupby(_scene_id_keys).agg({
-            **{col: list for col in other_columns},
+            **{col: lambda x: list(s)[0] if len(s:=set(x)) == 1 else s for col in other_columns},
             'state': lambda x: 'success' if all(s == 'success' for s in x) else 'failed'
         }).reset_index()
         

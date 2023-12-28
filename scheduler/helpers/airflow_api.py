@@ -1,5 +1,6 @@
-from typing import Union, List
+from typing import Union, List, Sequence
 
+import numpy as np
 import pandas as pd
 from loguru import logger
 
@@ -88,7 +89,13 @@ async def get_dag_runs(
 
 
 async def get_task_instance(
-    api_url: str, dag_id: str, dag_run_id: str, task_id: str, cookies: dict, to_dataframe: bool = False
+    api_url: str,
+    dag_id: str,
+    dag_run_id: str,
+    task_id: str,
+    cookies: dict,
+    to_dataframe: bool = False,
+    columns_to_drop: Sequence[str] = ('executor_config', 'rendered_fields'),
 ) -> Union[List[dict], pd.DataFrame]:
     """Get specific task instance status of a DagRun using Airflow RestAPI:
     http://{api_url}/api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}
@@ -107,7 +114,8 @@ async def get_task_instance(
         cookies for authentication
     to_dataframe : bool, optional
         if True, will convert list of dagruns (dict) into pandas.DataFrame, by default False.
-
+    columns_to_drop: 
+        columns to drop, due to the reduce operation, some unhashable columns must be dropped
     Returns
     -------
     Union[List[dict], pd.DataFrame]
@@ -119,6 +127,8 @@ async def get_task_instance(
     if to_dataframe:
         ti = pd.DataFrame.from_records(ti)
         ti.loc[:, "task_instance_state"] = ti.state
+    if columns_to_drop:
+        ti.drop(columns=list(columns_to_drop), inplace=True)
     return ti
 
 
@@ -147,10 +157,18 @@ async def trigger_dag(api_url: str, dag_id: str, cookies: dict, dag_conf: dict =
         return 200, {"message": msg}
 
     dag_conf = dag_conf or {}
+
+    dtype_map = {np.int64: int, np.int32: int, np.float64: float, np.float32: float, str: str}
+
+    dag_conf = {
+        k: dtype_map[type(dag_conf[k])](dag_conf[k]) for k in dag_conf
+    }  # convert dtype to prevent Airflow complaining about json serialization
+
     url = f"{api_url}/api/v1/dags/{dag_id}/dagRuns"
     payload = {"conf": dag_conf}
     if dag_run_id:
         payload["dag_run_id"] = dag_run_id
+
     return await ar.post(url, payload, cookies=cookies)
 
 
