@@ -56,7 +56,7 @@ class RestAPIWatcher(BaseWatcher):
         max_running_dag_runs : int, optional
             the maximum number of running dag_runs that the watcher will keep, by default 3
         triggered_dag_run_id_style : str, optional
-            Valid choices: ["timestamp", "scene_id_keys", "scene_id_keys_with_time"], by default "scene_id_keys_with_time"
+            Valid choices: ["timestamp", "scene_id_keys", "scene_id_keys_with_time", "batch_id_scene_id_with_time"], by default "scene_id_keys_with_time"
         watch_interval : int
             time interval (in seconds) between each watch, by default 10
         """
@@ -65,7 +65,7 @@ class RestAPIWatcher(BaseWatcher):
         # check the input's validity
         assert len(scene_id_keys) > 0, "scene_id_keys should not be empty"
         assert not scene_id_dtypes or len(scene_id_keys) == len(scene_id_dtypes), "scene_id_keys and scene_id_dtypes should have the same length"
-        assert triggered_dag_run_id_style in ["timestamp", "scene_id_keys", "scene_id_keys_with_time"], "invalid triggered_dag_run_id_style"
+        assert triggered_dag_run_id_style in ["timestamp", "scene_id_keys", "scene_id_keys_with_time", "batch_id_scene_id_with_time"], "invalid triggered_dag_run_id_style"
         # assert len(upstream_sensors) == len(
         #     {u.dag_id for u in upstream_sensors}
         # ), "the same dag_id appears more than once in upstream definition."
@@ -124,6 +124,8 @@ class RestAPIWatcher(BaseWatcher):
             dag_run_id = "__".join([f"{k}:{v}" for k, v in context.items()])
         elif self.triggered_dag_run_id_style == "scene_id_keys_with_time":
             dag_run_id = "__".join([f"{k}:{v}" for k, v in context.items()]) + f"__{time.time()}"
+        elif self.triggered_dag_run_id_style == "batch_id_scene_id_with_time":
+            dag_run_id = f"batch_id:{self.batch_id}__" + "__".join([f"{k}:{v}" for k, v in context.items()]) + f"__{time.time()}"
         status, json_data = await trigger_dag(self.api_url, self.dag_id, self.cookies, dag_conf=dag_conf, dag_run_id=dag_run_id)
         logger.info(f"[Watcher {self.dag_id}] Triggered DAG.")
         logger.info(f"[Watcher {self.dag_id}] Response from Airflow {json_data}")
