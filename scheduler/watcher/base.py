@@ -33,6 +33,10 @@ class BaseWatcher:
 
     async def run(self):
         while True:
+            # sleep for some time
+            await asyncio.sleep(self.watch_interval)
+
+            # start to process
             _dag_id = getattr(self, 'dag_id', None)
             try:
                 result = await self.watch()
@@ -42,9 +46,6 @@ class BaseWatcher:
             except Exception as e:
                 logger.error(f"[Watcher {_dag_id}] err_msg: {e}")
                 traceback.print_exc()
-
-            # sleep for some time
-            await asyncio.sleep(self.watch_interval)
 
     async def watch(self) -> WatchResult:
         raise NotImplementedError
